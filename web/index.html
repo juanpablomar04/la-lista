@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>La lista · Carreras Balcarce 2026</title>
+<meta name="theme-color" content="#14171c">
+<meta name="description" content="Pilotos, campeonatos y cronograma del fin de semana de carreras en Balcarce.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="La lista">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="La lista">
+<meta property="og:title" content="La lista · Carreras en Balcarce">
+<meta property="og:description" content="Pilotos, campeonatos y cronograma del fin de semana de carreras en Balcarce.">
+<meta property="og:image" content="__BASE_URL__/icon-512.png">
+<meta property="og:url" content="__BASE_URL__/">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
@@ -225,7 +240,8 @@
      const DATA = await (await fetch('./data/index.json')).json();
    La estructura es idéntica a la que genera scraper.py.
    =========================================================================== */
-const DATA = {
+const DATA_FALLBACK_MARK = 1;
+let DATA = {
   updated: "21/09/2026",
   avisos: [
     {id:"a1", cat:null, txt:"Cronograma sábado: pruebas 9:00 · series 13:30 · finales domingo desde 11:00."},
@@ -544,7 +560,32 @@ function render(){
      Editable en cualquier momento. Número, nombre, equipo y puntos.`;
 }
 
-render();
+// Arranque: intenta leer la API (mismo origen). Si falla, usa los datos embebidos.
+async function boot(){
+  try{
+    const [d, av] = await Promise.all([
+      fetch("/api/data").then(r=>{ if(!r.ok) throw 0; return r.json(); }),
+      fetch("/api/avisos").then(r=> r.ok ? r.json() : [])
+    ]);
+    if(d && Array.isArray(d.categories) && d.categories.length){
+      DATA = {
+        updated: d.updated || "",
+        avisos: Array.isArray(av) ? av : [],
+        cronograma: d.cronograma || {dias:[]},
+        categories: d.categories
+      };
+      if(!DATA.categories.find(c=>c.id===state.cat)) state.cat = DATA.categories[0].id;
+    }
+  }catch(e){ /* sin backend: queda el snapshot embebido */ }
+  render();
+}
+boot();
+
+// Service worker (instalable + offline). Silencioso si el entorno no lo permite.
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=> navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+}
+
 </script>
 </body>
 </html>

@@ -21,7 +21,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from db import create_store, CATS_META, CAT_IDS
@@ -263,6 +264,15 @@ async def admin_page():
     return FileResponse(Path(__file__).parent / "admin.html")
 
 
-@app.get("/")
-async def root():
-    return {"service": "La lista API", "admin": "/admin", "health": "/api/health"}
+WEB_DIR = Path(__file__).parent.parent / "web"
+
+
+@app.get("/", response_class=HTMLResponse)
+async def pwa(request: Request):
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    base = PUBLIC_WEB or str(request.base_url).rstrip("/")
+    return HTMLResponse(html.replace("__BASE_URL__", base))
+
+
+# Estáticos de la PWA (sw.js, manifest, iconos). Va último para no pisar /api ni /admin.
+app.mount("/", StaticFiles(directory=WEB_DIR), name="web")
