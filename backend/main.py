@@ -115,12 +115,29 @@ async def health():
 async def get_data():
     cats = []
     for meta in CATS_META:
-        cats.append({**meta,
-                     "pilotos": await store.list_pilotos(meta["id"]),
-                     "campeonato": await store.get_campeonato(meta["id"])})
+        pilotos = await store.list_pilotos(meta["id"])
+        camp = await store.get_campeonato(meta["id"])
+        _enrich_campeonato(camp, pilotos)
+        cats.append({**meta, "pilotos": pilotos, "campeonato": camp})
     return {"updated": await store.get_updated(),
             "cronograma": await store.get_cronograma(),
             "categories": cats}
+
+
+def _enrich_campeonato(camp, pilotos):
+    """El campeonato guarda posición, número y puntos; el nombre y la marca los
+    toma de la lista de pilotos (la fuente de verdad, editable en /admin),
+    cruzando por número. Así siempre quedan consistentes."""
+    if not camp or not camp.get("tabla"):
+        return
+    by_num = {str(p.get("n")): p for p in pilotos}
+    for row in camp["tabla"]:
+        p = by_num.get(str(row.get("n", "")))
+        if p:
+            if p.get("nombre"):
+                row["nombre"] = p["nombre"]
+            if p.get("marca"):
+                row["marca"] = p["marca"]
 
 
 @app.get("/api/cronograma")

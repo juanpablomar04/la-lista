@@ -135,9 +135,12 @@ def actc_campeonato(slug: str, marca_por_n: dict) -> dict | None:
             continue
         pos += 1
         numero = cells[1] if cells[1].isdigit() else _num_from(cells)
-        # nombre: 'Apellido, Nombre' dentro del texto del ancla
-        nm = re.search(r"([A-ZÀ-Ý][^,]+,\s*[A-ZÀ-Ý][^\d]+)", a.get_text(" ", strip=True))
-        nombre = titlecase_es(nm.group(1).strip()) if nm else a.get_text(" ", strip=True)
+        # el nombre 'APELLIDO, NOMBRE' está en la celda (el link envuelve la foto)
+        piloto_td = a.find_parent(["td", "th"])
+        cell_text = piloto_td.get_text(" ", strip=True) if piloto_td else a.get_text(" ", strip=True)
+        m = re.search(r"([A-ZÁÉÍÓÚÑÜÀ-Ý][A-ZÁÉÍÓÚÑÜÀ-Ý'.()\s]*,\s*"
+                      r"[A-ZÁÉÍÓÚÑÜÀ-Ý][A-ZÁÉÍÓÚÑÜÀ-Ý'.()\s]*)", cell_text)
+        nombre = titlecase_es(re.sub(r"\d+$", "", m.group(1)).strip()) if m else ""
         pts = _first_points(cells)
         tabla.append({"pos": pos, "n": numero, "nombre": nombre,
                       "marca": marca_por_n.get(numero, ""), "pts": pts})
