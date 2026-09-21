@@ -126,43 +126,36 @@ async def get_data():
             "categories": cats}
 
 
-def _canon(nombre: str):
-    """Devuelve (apellido, primer_nombre) normalizados, para cruzar por nombre
-    cuando no hay número (caso TSC). 'Alberghini, Diego Sebastián' y
-    'Alberghini, Diego' dan la misma clave ('alberghini', 'diego')."""
-    s = nombre or ""
-    if "," in s:
-        ap, no = s.split(",", 1)
-    else:
-        parts = s.split()
-        ap, no = (parts[0] if parts else ""), " ".join(parts[1:])
-
-    def norm(x):
-        x = unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode().lower()
-        return [t for t in re.sub(r"[^a-z0-9 ]", " ", x).split() if t]
-
-    apt, npt = norm(ap), norm(no)
-    return (" ".join(apt), npt[0] if npt else "")
+def _tokens(nombre: str) -> frozenset:
+    """Nombre -> conjunto de palabras normalizadas (sin acentos ni puntuación).
+    Sirve para cruzar sin importar el orden: 'Agustín Gusmeroli' y
+    'Gusmeroli, Agustín' dan el mismo conjunto."""
+    x = unicodedata.normalize("NFKD", nombre or "").encode("ascii", "ignore").decode().lower()
+    return frozenset(t for t in re.sub(r"[^a-z0-9 ]", " ", x).split() if t)
 
 
 def _enrich_campeonato(camp, pilotos):
     """El campeonato guarda posición y puntos; el nombre, la marca y (para el TSC)
     el número los toma de la lista de pilotos, cruzando por número o, si no hay,
-    por nombre. La lista de pilotos es la fuente de verdad, editable en /admin."""
+    por nombre — comparando el conjunto de palabras, así tolera el orden invertido
+    (Nombre Apellido) y los nombres parciales. La lista de pilotos manda."""
     if not camp or not camp.get("tabla"):
         return
     by_num = {str(p.get("n")): p for p in pilotos if p.get("n")}
-    by_name = {}
-    for p in pilotos:
-        k = _canon(p.get("nombre", ""))
-        if k == ("", ""):
-            continue
-        by_name[k] = None if k in by_name else p       # None marca ambigüedad
+    pil_tokens = [(p, _tokens(p.get("nombre", ""))) for p in pilotos if p.get("nombre")]
+
+    def by_name(nombre):
+        rt = _tokens(nombre)
+        if len(rt) < 2:
+            return None
+        hits = [p for p, pt in pil_tokens if len(pt) >= 2 and rt <= pt]
+        return hits[0] if len(hits) == 1 else None      # único, si no es ambiguo
+
     for row in camp["tabla"]:
         sin_num = not row.get("n") or str(row["n"]) in ("", "—")
         p = None if sin_num else by_num.get(str(row.get("n")))
         if not p and sin_num:
-            p = by_name.get(_canon(row.get("nombre", "")))
+            p = by_name(row.get("nombre", ""))
         if p:
             if p.get("nombre"):
                 row["nombre"] = p["nombre"]
