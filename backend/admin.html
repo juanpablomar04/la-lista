@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La lista · Admin</title>
+<style>
+  :root{--bg:#14171c;--card:#1b1f26;--card2:#20252e;--line:#2b313b;--fg:#f2efe8;--mut:#8b93a1;--acc:#e63946;--ok:#38b2ac;box-sizing:border-box}
+  *{box-sizing:inherit;margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,sans-serif;
+    padding:max(16px,env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:22px;letter-spacing:.02em;margin-bottom:2px}
+  h1 small{display:block;font-size:12px;color:var(--mut);font-weight:400;margin-top:3px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+  label{display:block;font-size:12px;color:var(--mut);margin:8px 0 4px}
+  input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:8px;
+    color:var(--fg);font:inherit;padding:9px 11px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);border-color:transparent}
+  button{appearance:none;cursor:pointer;border:none;border-radius:8px;font:inherit;font-weight:600;padding:9px 14px}
+  .btn{background:var(--acc);color:#fff}
+  .btn2{background:var(--card2);color:var(--fg);border:1px solid var(--line)}
+  .btn-sm{padding:6px 10px;font-size:13px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .cats{display:flex;gap:6px;margin:14px 0 4px;overflow-x:auto}
+  .cat{background:var(--card);border:1px solid var(--line);color:var(--mut);border-radius:999px;
+    padding:7px 13px;white-space:nowrap;font-weight:600;font-size:14px}
+  .cat.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .pil{display:flex;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)}
+  .pil .n{flex:none;min-width:40px;height:34px;display:flex;align-items:center;justify-content:center;
+    background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:7px;font-weight:700}
+  .pil .i{flex:1;min-width:0}
+  .pil .i b{font-weight:600}.pil .i span{display:block;color:var(--mut);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grid{display:grid;grid-template-columns:70px 1fr;gap:8px}
+  .grid .full{grid-column:1/3}
+  .muted{color:var(--mut);font-size:13px}
+  .hidden{display:none}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ok);color:#04201e;
+    font-weight:600;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .aviso{display:flex;gap:8px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--line)}
+  .aviso .t{flex:1}.aviso .tag{font-size:11px;color:var(--acc);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>La lista · Admin <small id="sub">Cargá pilotos y avisos</small></h1>
+
+  <!-- LOGIN -->
+  <div id="login" class="card">
+    <label>Clave de admin</label>
+    <div class="row">
+      <input id="key" type="password" placeholder="Tu ADMIN_TOKEN" style="flex:1">
+      <button class="btn" onclick="login()">Entrar</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Es el valor de <code>ADMIN_TOKEN</code> del backend.</p>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <div class="cats" id="cats"></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <b id="catName"></b><span class="muted" id="count"></span>
+      </div>
+      <div id="pilotos"></div>
+    </div>
+
+    <div class="card">
+      <b id="formTitle">Agregar piloto</b>
+      <div class="grid" style="margin-top:10px">
+        <div><label>N°</label><input id="f_n" inputmode="numeric"></div>
+        <div><label>Nombre (Apellido, Nombre)</label><input id="f_nombre"></div>
+        <div class="full"><label>Equipo</label><input id="f_equipo"></div>
+        <div><label>Marca</label><input id="f_marca"></div>
+        <div><label>Modelo</label><input id="f_modelo"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="savePiloto()">Guardar</button>
+        <button class="btn2" onclick="resetForm()">Limpiar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <b>Avisos / notificaciones</b>
+      <div id="avisos" style="margin:8px 0"></div>
+      <label>Nuevo aviso</label>
+      <textarea id="a_txt" rows="2" placeholder="Ej: Ya salió la grilla de la final."></textarea>
+      <label>¿Para qué categoría?</label>
+      <select id="a_cat"><option value="">Todas</option></select>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="addAviso()">Publicar aviso</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <b>Cronograma del fin de semana</b>
+      <p class="muted" style="margin:4px 0 2px">Cargá las sesiones cuando tengas los horarios. Se guarda todo junto.</p>
+      <div id="crono"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="saveCrono()">Guardar cronograma</button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn2 btn-sm" onclick="logout()">Salir</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = "";                          // mismo origen que sirve /admin
+const CATS = [
+  {id:"tcpk", short:"TC PK"},
+  {id:"tcppk", short:"TC Pista PK"},
+  {id:"tsc", short:"TSC"},
+];
+let TOKEN = localStorage.getItem("lalista_key") || "";
+let cat = "tcpk";
+
+const $ = s => document.querySelector(s);
+const H = () => ({"Authorization":"Bearer "+TOKEN, "Content-Type":"application/json"});
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1600);}
+
+async function api(path, opts={}){
+  const r = await fetch(API+path, {headers:H(), ...opts});
+  if(r.status===401){ logout(); throw new Error("401"); }
+  if(!r.ok) throw new Error(await r.text());
+  return r.status===204 ? null : r.json();
+}
+
+async function login(){
+  TOKEN = $("#key").value.trim();
+  try{
+    await api("/api/admin/login", {method:"POST"});
+    localStorage.setItem("lalista_key", TOKEN);
+    boot();
+  }catch(e){ toast("Clave inválida"); }
+}
+function logout(){ localStorage.removeItem("lalista_key"); TOKEN=""; $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); }
+
+function boot(){
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+  $("#cats").innerHTML = CATS.map(c=>`<div class="cat" data-c="${c.id}" onclick="selCat('${c.id}')">${c.short}</div>`).join("");
+  $("#a_cat").innerHTML = '<option value="">Todas</option>' + CATS.map(c=>`<option value="${c.id}">${c.short}</option>`).join("");
+  selCat(cat);
+  loadAvisos();
+  loadCrono();
+}
+function selCat(c){
+  cat = c;
+  document.querySelectorAll(".cat").forEach(e=>e.classList.toggle("on", e.dataset.c===c));
+  $("#catName").textContent = CATS.find(x=>x.id===c).short;
+  loadPilotos();
+}
+
+async function loadPilotos(){
+  const list = await api("/api/admin/pilotos?cat="+cat);
+  $("#count").textContent = list.length+" pilotos";
+  $("#pilotos").innerHTML = list.map(p=>`
+    <div class="pil">
+      <div class="n">${p.n}</div>
+      <div class="i"><b>${p.nombre||""}</b><span>${[p.equipo, [p.marca,p.modelo].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}</span></div>
+      <button class="btn2 btn-sm" onclick='edit(${JSON.stringify(p)})'>Editar</button>
+      <button class="btn2 btn-sm" onclick="delP('${p.n}')">✕</button>
+    </div>`).join("") || '<p class="muted" style="padding:8px 0">Sin pilotos todavía.</p>';
+}
+
+function edit(p){
+  $("#formTitle").textContent = "Editar N° "+p.n;
+  f_n.value=p.n; f_nombre.value=p.nombre||""; f_equipo.value=p.equipo||""; f_marca.value=p.marca||""; f_modelo.value=p.modelo||"";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function resetForm(){ $("#formTitle").textContent="Agregar piloto"; ["f_n","f_nombre","f_equipo","f_marca","f_modelo"].forEach(i=>$("#"+i).value=""); }
+
+async function savePiloto(){
+  const body = {n:f_n.value.trim(), nombre:f_nombre.value.trim(), equipo:f_equipo.value.trim(), marca:f_marca.value.trim(), modelo:f_modelo.value.trim()};
+  if(!body.n || !body.nombre){ toast("N° y nombre son obligatorios"); return; }
+  await api("/api/admin/pilotos?cat="+cat, {method:"POST", body:JSON.stringify(body)});
+  toast("Guardado"); resetForm(); loadPilotos();
+}
+async function delP(n){
+  if(!confirm("¿Borrar el N° "+n+"?")) return;
+  await api(`/api/admin/pilotos/${cat}/${n}`, {method:"DELETE"});
+  toast("Borrado"); loadPilotos();
+}
+
+async function loadAvisos(){
+  const list = await api("/api/avisos");
+  $("#avisos").innerHTML = list.map(a=>`
+    <div class="aviso">
+      <div class="t">${a.txt}${a.cat?` <span class="tag">(${a.cat})</span>`:""}</div>
+      <button class="btn2 btn-sm" onclick="delAviso('${a.id}')">✕</button>
+    </div>`).join("") || '<p class="muted">Sin avisos.</p>';
+}
+async function addAviso(){
+  const txt = $("#a_txt").value.trim(); if(!txt){ toast("Escribí el aviso"); return; }
+  await api("/api/admin/avisos", {method:"POST", body:JSON.stringify({txt, cat:$("#a_cat").value||null})});
+  $("#a_txt").value=""; toast("Aviso publicado"); loadAvisos();
+}
+async function delAviso(id){
+  await api("/api/admin/avisos/"+id, {method:"DELETE"});
+  loadAvisos();
+}
+
+// ----- cronograma -----
+let crono = {dias:[]};
+const DIAS = ["Sábado","Domingo"];
+function catOpts(){ return '<option value="">Todas</option>'+CATS.map(c=>`<option value="${c.id}">${c.short}</option>`).join(""); }
+
+async function loadCrono(){
+  try{ crono = await (await fetch(API+"/api/cronograma")).json(); }catch(e){ crono={dias:[]}; }
+  if(!crono || !crono.dias || !crono.dias.length){ crono = {dias: DIAS.map(d=>({dia:d, sesiones:[]}))}; }
+  renderCrono();
+}
+function renderCrono(){
+  $("#crono").innerHTML = crono.dias.map((d,di)=>`
+    <div style="margin-top:14px">
+      <b style="font-size:14px">${d.dia}</b>
+      ${d.sesiones.map((s,si)=>`<div class="pil">
+        <div class="n" style="min-width:56px;font-size:14px">${s.hora||"--:--"}</div>
+        <div class="i"><b>${s.actividad}</b><span>${s.cat?(CATS.find(c=>c.id===s.cat)||{}).short||s.cat:"Todas"}</span></div>
+        <button class="btn2 btn-sm" onclick="delSes(${di},${si})">✕</button>
+      </div>`).join("")}
+      <div class="grid" style="grid-template-columns:74px 1fr;margin-top:8px">
+        <input id="cs_hora_${di}" placeholder="09:00" inputmode="numeric">
+        <input id="cs_act_${di}" placeholder="Actividad (ej. Serie 1, Final)">
+        <select id="cs_cat_${di}" class="full">${catOpts()}</select>
+      </div>
+      <button class="btn2 btn-sm" style="margin-top:8px" onclick="addSes(${di})">+ Agregar sesión</button>
+    </div>`).join("");
+}
+function addSes(di){
+  const hora=$("#cs_hora_"+di).value.trim(), act=$("#cs_act_"+di).value.trim(), cat=$("#cs_cat_"+di).value||null;
+  if(!act){ toast("Poné la actividad"); return; }
+  crono.dias[di].sesiones.push({hora,cat,actividad:act});
+  crono.dias[di].sesiones.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+  renderCrono();
+}
+function delSes(di,si){ crono.dias[di].sesiones.splice(si,1); renderCrono(); }
+async function saveCrono(){
+  await api("/api/admin/cronograma",{method:"PUT",body:JSON.stringify(crono)});
+  toast("Cronograma guardado");
+}
+
+// auto-login si ya hay clave guardada
+if(TOKEN){ api("/api/admin/login",{method:"POST"}).then(boot).catch(logout); }
+</script>
+</body>
+</html>

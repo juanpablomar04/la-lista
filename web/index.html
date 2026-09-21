@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La lista · Carreras Balcarce 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: dark light;
+    --asphalt:#14171c;
+    --graphite:#1b1f26;
+    --graphite-2:#20252e;
+    --line:#2b313b;
+    --bone:#f2efe8;
+    --muted:#8b93a1;
+    --dust:#d8c9a8;
+    --shadow: 0 1px 0 rgba(0,0,0,.4);
+    --acc:#e63946;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    box-sizing:border-box;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --asphalt:#efece4;
+      --graphite:#ffffff;
+      --graphite-2:#f6f3ec;
+      --line:#ddd7ca;
+      --bone:#1a1d22;
+      --muted:#6b7280;
+      --dust:#8a6d3b;
+      --shadow: 0 1px 0 rgba(0,0,0,.04);
+    }
+  }
+  :root[data-theme="dark"]{
+    --asphalt:#14171c;--graphite:#1b1f26;--graphite-2:#20252e;--line:#2b313b;
+    --bone:#f2efe8;--muted:#8b93a1;--dust:#d8c9a8;--shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+  *{box-sizing:inherit;margin:0;padding:0}
+  html{height:100%;scroll-padding-top: var(--safe-t);}
+  body{
+    min-height:100%;
+    background:var(--asphalt);
+    color:var(--bone);
+    font-family:"Barlow",system-ui,-apple-system,sans-serif;
+    font-size:16px;line-height:1.4;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom: calc(24px + var(--safe-b));
+  }
+  .cond{font-family:"Barlow Condensed",system-ui,sans-serif;}
+  .app{max-width:560px;margin:0 auto;}
+
+  /* Header */
+  header{
+    position:sticky;top:0;z-index:20;
+    background:color-mix(in srgb, var(--asphalt) 88%, transparent);
+    backdrop-filter:saturate(140%) blur(10px);
+    border-bottom:1px solid var(--line);
+    padding: calc(12px + var(--safe-t)) 16px 0;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding-bottom:12px}
+  .flag{
+    width:26px;height:26px;flex:none;border-radius:5px;
+    background:
+      conic-gradient(var(--bone) 90deg, transparent 0 180deg, var(--bone) 0 270deg, transparent 0) 0 0/13px 13px;
+    background-color:#0c0e12;
+    outline:1px solid var(--line);
+  }
+  .wordmark{font-family:"Barlow Condensed";font-weight:700;letter-spacing:.04em;font-size:24px;line-height:1}
+  .wordmark small{display:block;font-family:"Barlow";font-weight:500;letter-spacing:.02em;
+    font-size:11.5px;color:var(--muted);margin-top:2px;text-transform:none}
+  .whereami{margin-left:auto;text-align:right;font-size:11px;color:var(--muted);line-height:1.3}
+  .whereami b{color:var(--dust);font-weight:600}
+
+  /* Category switch */
+  .cats{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .cats::-webkit-scrollbar{display:none}
+  .cat{
+    appearance:none;background:none;border:none;cursor:pointer;
+    font-family:"Barlow Condensed";font-weight:600;font-size:16px;letter-spacing:.02em;
+    color:var(--muted);padding:12px 12px 12px 2px;white-space:nowrap;
+    border-bottom:3px solid transparent;margin-bottom:-1px;transition:color .15s;
+  }
+  .cat:first-child{padding-left:0}
+  .cat .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+  .cat[aria-selected="true"]{color:var(--bone);border-bottom-color:var(--cat-acc)}
+
+  /* View switch */
+  .views{display:flex;gap:8px;padding:14px 16px 4px}
+  .view-btn{
+    flex:1;appearance:none;cursor:pointer;
+    background:var(--graphite);border:1px solid var(--line);border-radius:9px;
+    color:var(--muted);font-family:"Barlow Condensed";font-weight:600;font-size:16px;
+    letter-spacing:.03em;padding:9px;transition:all .15s;
+  }
+  .view-btn[aria-selected="true"]{background:var(--acc);border-color:var(--acc);color:#fff}
+
+  main{padding:8px 16px 0}
+
+  /* Meta row */
+  .meta{display:flex;align-items:center;gap:10px;margin:8px 2px 12px;color:var(--muted);font-size:13px}
+  .meta .count{color:var(--bone);font-family:"Barlow Condensed";font-weight:600;font-size:20px}
+  .search{
+    margin-left:auto;flex:1;max-width:190px;
+    background:var(--graphite);border:1px solid var(--line);border-radius:8px;
+    color:var(--bone);font:inherit;font-size:14px;padding:7px 11px;
+  }
+  .search::placeholder{color:var(--muted)}
+  .search:focus{outline:2px solid var(--acc);outline-offset:0;border-color:transparent}
+
+  /* Pilotos list */
+  .row{display:flex;align-items:center;gap:13px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .num{
+    flex:none;min-width:44px;height:40px;padding:0 6px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--graphite-2);border:1px solid var(--line);border-left:3px solid var(--acc);
+    border-radius:7px;
+    font-family:"Barlow Condensed";font-weight:700;font-size:23px;line-height:1;
+    font-variant-numeric:tabular-nums;
+  }
+  .who{min-width:0;flex:1}
+  .name{font-weight:600;font-size:15.5px;line-height:1.2}
+  .sub{color:var(--muted);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sub .marca{color:var(--dust)}
+
+  /* Podium */
+  .podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;margin:6px 0 18px}
+  .pod{
+    background:var(--graphite);border:1px solid var(--line);border-radius:11px;
+    padding:12px 8px;text-align:center;position:relative;overflow:hidden;
+  }
+  .pod::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:var(--pos-c)}
+  .pod .pos{font-family:"Barlow Condensed";font-weight:700;font-size:15px;color:var(--pos-c);letter-spacing:.04em}
+  .pod .pn{font-weight:600;font-size:13.5px;line-height:1.15;margin:5px 0 1px;min-height:2.3em;
+    display:flex;align-items:center;justify-content:center}
+  .pod .pnum{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+  .pod .pts{font-family:"Barlow Condensed";font-weight:700;font-size:29px;line-height:1;margin-top:7px;
+    font-variant-numeric:tabular-nums}
+  .pod .pts span{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px}
+  .pod.p1{padding-top:18px}
+  .pod.p1 .pts{font-size:34px}
+
+  /* Standings table */
+  .tbl-h{display:flex;align-items:baseline;justify-content:space-between;margin:2px 2px 8px}
+  .tbl-h h2{font-family:"Barlow Condensed";font-weight:600;font-size:16px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+  .tbl-h .fechas{font-size:12px;color:var(--muted)}
+  .st{display:flex;align-items:center;gap:11px;padding:10px 4px;border-bottom:1px solid var(--line)}
+  .st .p{flex:none;width:22px;text-align:right;font-family:"Barlow Condensed";font-weight:700;font-size:19px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .st .cn{flex:none;width:38px;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .st .sn{flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .st .sn em{font-style:normal;color:var(--dust);font-weight:500;font-size:12px;display:block;margin-top:1px}
+  .st .sp{flex:none;font-family:"Barlow Condensed";font-weight:700;font-size:21px;font-variant-numeric:tabular-nums}
+  .st.lead{background:linear-gradient(90deg,color-mix(in srgb,var(--acc) 16%,transparent),transparent);
+    margin:0 -4px;padding-left:8px;padding-right:8px;border-radius:8px}
+  .st.lead .p{color:var(--acc)}
+
+  /* Empty state */
+  .empty{padding:40px 20px;text-align:center;color:var(--muted)}
+  .empty .big{font-family:"Barlow Condensed";font-weight:600;font-size:20px;color:var(--bone);margin-bottom:6px}
+
+  /* Avisos / notificaciones */
+  .aviso{display:flex;gap:10px;align-items:flex-start;margin:12px 16px 0;padding:11px 12px;
+    background:var(--graphite);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:9px}
+  .aviso .bell{flex:none;font-size:15px;line-height:1.3;filter:grayscale(.2)}
+  .aviso .txt{flex:1;font-size:13.5px;line-height:1.35}
+  .aviso .txt b{color:var(--dust);font-weight:600;font-family:"Barlow Condensed";letter-spacing:.02em;font-size:14px}
+  .aviso .x{flex:none;appearance:none;background:none;border:none;color:var(--muted);cursor:pointer;
+    font-size:17px;line-height:1;padding:2px 2px 2px 6px}
+  .aviso .x:hover{color:var(--bone)}
+
+  /* Cronograma */
+  .note{margin:10px 2px 4px;color:var(--muted);font-size:12.5px}
+  .daytabs{display:flex;gap:8px;margin:12px 0 6px}
+  .daytab{flex:1;appearance:none;cursor:pointer;background:var(--graphite);border:1px solid var(--line);
+    border-radius:9px;color:var(--muted);font-family:"Barlow Condensed";font-weight:600;font-size:16px;
+    letter-spacing:.03em;padding:9px}
+  .daytab[aria-selected="true"]{background:var(--graphite-2);color:var(--bone);border-color:var(--acc)}
+  .ses{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .ses .h{flex:none;min-width:52px;font-family:"Barlow Condensed";font-weight:700;font-size:19px;
+    font-variant-numeric:tabular-nums;color:var(--bone)}
+  .ses .act{flex:1;min-width:0;font-weight:600;font-size:15px}
+  .chip{flex:none;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;
+    border:1px solid var(--chip-c);color:var(--chip-c)}
+  .chip.all{--chip-c:var(--muted)}
+
+  footer{margin:22px 16px 0;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.5}
+  footer b{color:var(--dust);font-weight:600}
+  .hidden{display:none}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="flag" aria-hidden="true"></div>
+      <div class="wordmark cond">LA LISTA
+        <small>Carreras · Balcarce 2026</small>
+      </div>
+      <div class="whereami">Fin de semana<br><b>de carreras</b></div>
+    </div>
+    <div class="cats" id="cats" role="tablist" aria-label="Categorías"></div>
+  </header>
+
+  <div class="views" id="views" role="tablist" aria-label="Vista">
+    <button class="view-btn" data-view="pilotos" role="tab" aria-selected="true">Pilotos</button>
+    <button class="view-btn" data-view="campeonato" role="tab" aria-selected="false">Campeonato</button>
+    <button class="view-btn" data-view="cronograma" role="tab" aria-selected="false">Cronograma</button>
+  </div>
+
+  <div id="avisos"></div>
+
+  <main id="content"></main>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+/* ===========================================================================
+   DATOS — snapshot real tomado el 21/09/2026 de las páginas oficiales.
+   En producción, este objeto se reemplaza por un fetch a tus JSON:
+     const DATA = await (await fetch('./data/index.json')).json();
+   La estructura es idéntica a la que genera scraper.py.
+   =========================================================================== */
+const DATA = {
+  updated: "21/09/2026",
+  avisos: [
+    {id:"a1", cat:null, txt:"Cronograma sábado: pruebas 9:00 · series 13:30 · finales domingo desde 11:00."},
+    {id:"a2", cat:"tcpk", txt:"TC PK: se sumó una pickup más a la nómina de esta fecha."}
+  ],
+  cronograma: { ejemplo:true, dias:[
+    {dia:"Sábado", sesiones:[
+      {hora:"09:00", cat:"tcpk",  actividad:"Pruebas"},
+      {hora:"10:15", cat:"tcppk", actividad:"Pruebas"},
+      {hora:"11:30", cat:"tsc",   actividad:"Clasificación"},
+      {hora:"13:30", cat:"tcpk",  actividad:"Clasificación"},
+      {hora:"15:00", cat:null,    actividad:"Series — todas las categorías"}
+    ]},
+    {dia:"Domingo", sesiones:[
+      {hora:"10:00", cat:null,    actividad:"Warm up"},
+      {hora:"11:15", cat:"tsc",   actividad:"Final TSC"},
+      {hora:"12:30", cat:"tcppk", actividad:"Final TC Pista Pick Up"},
+      {hora:"14:00", cat:"tcpk",  actividad:"Final TC Pick Up"}
+    ]}
+  ]},
+  categories: [
+    {
+      id:"tcpk", name:"TC Pick Up", short:"TC PK", acc:"#e63946", source:"actc.org.ar",
+      pilotos:[
+        {n:"1",nombre:"Canapino, Agustín",equipo:"Canning Motorsports",marca:"Chevrolet",modelo:"S10"},
+        {n:"215",nombre:"Mangoni, Santiago",equipo:"Canning Motorsport",marca:"Chevrolet",modelo:"S10"},
+        {n:"3",nombre:"Werner, Mariano",equipo:"Fadel Memo Corse",marca:"Foton",modelo:"Tunland G7"},
+        {n:"11",nombre:"Mazzacane, Gastón",equipo:"Coiro Competición",marca:"Foton",modelo:"Tunland G7"},
+        {n:"2",nombre:"Ebarlín, Juan José",equipo:"EZE-B Team",marca:"Toyota",modelo:"Hilux"},
+        {n:"66",nombre:"Tadei, Gustavo (H)",equipo:"GT Racing",marca:"Ford",modelo:"Ranger"},
+        {n:"68",nombre:"Santero, Julián",equipo:"Frano Race",marca:"Toyota",modelo:"Hilux"},
+        {n:"75",nombre:"Frano, Matías",equipo:"Frano Race",marca:"Toyota",modelo:"Hilux"},
+        {n:"77",nombre:"Ciantini, José",equipo:"Ezeb Team",marca:"Toyota",modelo:"Hilux"},
+        {n:"80",nombre:"Abdala, Tomás",equipo:"Tomás Abdala Racing",marca:"Ford",modelo:"Ranger"},
+        {n:"83",nombre:"Ardusso, Facundo",equipo:"Coiro Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"86",nombre:"Faín, Ignacio",equipo:"Gurí Martínez Competición",marca:"Ford",modelo:"Ranger"},
+        {n:"100",nombre:"Reutemann, Ian",equipo:"Frano Race",marca:"Toyota",modelo:"Hilux"},
+        {n:"107",nombre:"Martínez, Tobías",equipo:"RUS MED Team",marca:"Chevrolet",modelo:"S-10"},
+        {n:"110",nombre:"Azar, Diego",equipo:"Azar Motorsport",marca:"Toyota",modelo:"Hilux"},
+        {n:"112",nombre:"Valle, Lucas",equipo:"Coiro Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"115",nombre:"Ciantini, Diego",equipo:"Gurí Martínez Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"13",nombre:"De Carlo, Diego",equipo:"LRD Racing Team",marca:"Volkswagen",modelo:"Amarok"},
+        {n:"119",nombre:"Palazzo, Hernán",equipo:"Coiro Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"121",nombre:"Martínez, Omar",equipo:"Gurí Martínez Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"122",nombre:"Jakos, Andrés",equipo:"Coiro Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"126",nombre:"Ricciardi, Thomas",equipo:"SAP Team",marca:"Ford",modelo:"Ranger"},
+        {n:"140",nombre:"Chansard, Gaspar",equipo:"Giavedoni Sport",marca:"Volkswagen",modelo:"Amarok"},
+        {n:"147",nombre:"Dianda, Marco",equipo:"Gurí Martínez Competición",marca:"Ford",modelo:"Ranger"},
+        {n:"154",nombre:"Ochoa, Joaquín",equipo:"SAP Team",marca:"Ford",modelo:"Ranger"},
+        {n:"256",nombre:"Fritzler, Otto",equipo:"Maquin Parts",marca:"Ford",modelo:"Ranger"}
+      ],
+      campeonato:{fechas:"7 fechas disputadas", tabla:[
+        {pos:1,n:"3",nombre:"Werner, Mariano",marca:"Foton",pts:"268"},
+        {pos:2,n:"256",nombre:"Fritzler, Otto",marca:"Ford",pts:"257"},
+        {pos:3,n:"1",nombre:"Canapino, Agustín",marca:"Chevrolet",pts:"251"},
+        {pos:4,n:"11",nombre:"Mazzacane, Gastón",marca:"Foton",pts:"225,5"},
+        {pos:5,n:"119",nombre:"Palazzo, Hernán",marca:"Toyota",pts:"225"},
+        {pos:6,n:"147",nombre:"Dianda, Marco",marca:"Ford",pts:"223,5"},
+        {pos:7,n:"110",nombre:"Azar, Diego",marca:"Toyota",pts:"222"},
+        {pos:8,n:"86",nombre:"Faín, Ignacio",marca:"Ford",pts:"218,5"},
+        {pos:9,n:"13",nombre:"De Carlo, Diego",marca:"Volkswagen",pts:"197"},
+        {pos:10,n:"107",nombre:"Martínez, Tobías",marca:"Chevrolet",pts:"194"},
+        {pos:11,n:"80",nombre:"Abdala, Tomás",marca:"Ford",pts:"180"},
+        {pos:12,n:"66",nombre:"Tadei, Gustavo (H)",marca:"Ford",pts:"148,5"},
+        {pos:13,n:"83",nombre:"Ardusso, Facundo",marca:"Toyota",pts:"128,5"},
+        {pos:14,n:"2",nombre:"Ebarlín, Juan José",marca:"Toyota",pts:"115"},
+        {pos:15,n:"122",nombre:"Jakos, Andrés",marca:"Toyota",pts:"89"},
+        {pos:16,n:"100",nombre:"Reutemann, Ian",marca:"Toyota",pts:"68"},
+        {pos:17,n:"154",nombre:"Ochoa, Joaquín",marca:"Ford",pts:"58,5"},
+        {pos:18,n:"—",nombre:"Iansa, Gastón",marca:"",pts:"57,5"},
+        {pos:19,n:"68",nombre:"Santero, Julián",marca:"Toyota",pts:"56"},
+        {pos:20,n:"112",nombre:"Valle, Lucas",marca:"Toyota",pts:"48"}
+      ]}
+    },
+    {
+      id:"tcppk", name:"TC Pista Pick Up", short:"TC Pista PK", acc:"#f4a12a", source:"actc.org.ar",
+      pilotos:[
+        {n:"10",nombre:"Catelli, Luis",equipo:"Jalaf Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"14",nombre:"Goya, Néstor Omar",equipo:"Giavedoni Sport",marca:"Ford",modelo:"Ranger"},
+        {n:"15",nombre:"Goya, José Alberto",equipo:"Giavedoni Sport",marca:"Ford",modelo:"Ranger"},
+        {n:"22",nombre:"Montanari, José Carlos",equipo:"Montanari Racing",marca:"Ford",modelo:"Ranger"},
+        {n:"23",nombre:"Sala, Hernán",equipo:"Fadel Memo Corse",marca:"RAM",modelo:""},
+        {n:"8",nombre:"Sandin, Juan Antonio",equipo:"Matías Jalaf Competición",marca:"Ford",modelo:"Ranger"},
+        {n:"44",nombre:"Rossotti Camporino, Joaquín",equipo:"Alifraco Sport",marca:"Nissan",modelo:"Frontier"},
+        {n:"65",nombre:"Simonetti, Emiliano",equipo:"GT Racing",marca:"Ford",modelo:"Ranger"},
+        {n:"66",nombre:"Aramburu, Gonzalo",equipo:"Gallo Competición",marca:"Toyota",modelo:"Hilux"},
+        {n:"67",nombre:"Biagi, Santiago",equipo:"RUS MED Team",marca:"Toyota",modelo:"Hilux"},
+        {n:"71",nombre:"Guiffrey, Juan Pablo",equipo:"SAP Team",marca:"Ford",modelo:"Ranger"},
+        {n:"76",nombre:"Suárez, Juan José",equipo:"DBG Motorsport",marca:"Ford",modelo:"Ranger"},
+        {n:"77",nombre:"Baldo, Mario",equipo:"IR Racing",marca:"Ford",modelo:"Ranger"},
+        {n:"80",nombre:"Inella, Alejandro",equipo:"Abdala Racing",marca:"Volkswagen",modelo:"Amarok"},
+        {n:"88",nombre:"Oroza, Alvaro",equipo:"Trotta Racing",marca:"Ford",modelo:"Ranger"},
+        {n:"100",nombre:"Forte, Leonardo",equipo:"Forte Sport",marca:"Volkswagen",modelo:"Amarok"},
+        {n:"105",nombre:"Borgert, Manuel",equipo:"Frano Race",marca:"Ford",modelo:"Ranger"},
+        {n:"107",nombre:"Sganga, Antonino",equipo:"Gurí Martínez Competición",marca:"Ford",modelo:"Ranger"},
+        {n:"122",nombre:"Vergagni, Marcelo",equipo:"Baldi Coronas Competición",marca:"Ford",modelo:"Ranger"},
+        {n:"123",nombre:"Santilli Pazos, Nicanor",equipo:"Coiro Competición",marca:"Foton",modelo:"Tunland G7"},
+        {n:"127",nombre:"Cordone, Nahuel",equipo:"Impiombato Motorsport",marca:"Ford",modelo:"Ranger"},
+        {n:"132",nombre:"Pellandino, Tomás",equipo:"SAP Team",marca:"Ford",modelo:"Ranger"},
+        {n:"133",nombre:"Alberti, Juan Pablo",equipo:"DBG Motorsport",marca:"Volkswagen",modelo:"Amarok"},
+        {n:"144",nombre:"Cifre, Faustino",equipo:"Giavedoni Sport",marca:"Ford",modelo:"Ranger"},
+        {n:"188",nombre:"Di Salvia, Tomás",equipo:"Azar Motorsport",marca:"Toyota",modelo:"Hilux"}
+      ],
+      campeonato:null // se completa cuando el scraper lea actc.org.ar/tcppk/campeonato
+    },
+    {
+      id:"tsc", name:"Turismo Special de la Costa", short:"TSC", acc:"#38b2ac", source:"turismospecialdelacosta.com.ar",
+      pilotos:[
+        {n:"1",nombre:"Letche Doumic, Marcelo",marca:"Dodge"},{n:"2",nombre:"Ianni, Ariel",marca:"Ford"},
+        {n:"3",nombre:"Dimuro, Juan Esteban",marca:"Chevrolet"},{n:"4",nombre:"Bozzone, Luca",marca:"Chevrolet"},
+        {n:"5",nombre:"Morón, Nahuel",marca:"Chevrolet"},{n:"6",nombre:"Climente, Carlos",marca:"Chevrolet"},
+        {n:"7",nombre:"Rapari, Darío",marca:"Dodge"},{n:"8",nombre:"Islas, Juan Miguel",marca:"Torino"},
+        {n:"9",nombre:"López de Calatayud, Julio",marca:"Torino"},{n:"10",nombre:"Durán, Ariel",marca:"Chevrolet"},
+        {n:"11",nombre:"Tamagno, Francisco",marca:"Dodge"},{n:"12",nombre:"Gusmeroli, Agustín",marca:"Ford"},
+        {n:"14",nombre:"Villanueva, Juan Pablo",marca:"Chrysler"},{n:"15",nombre:"Marcos, Rafael",marca:"Ford"},
+        {n:"16",nombre:"Marconi, Mariano",marca:"Chevrolet"},{n:"17",nombre:"Calamante, Martín",marca:"Chevrolet"},
+        {n:"18",nombre:"Losada, Omar",marca:"Chevrolet"},{n:"19",nombre:"Agüero, Jonathan",marca:"Chevrolet"},
+        {n:"20",nombre:"Rosconi, Juan Ezequiel",marca:"Chevrolet"},{n:"21",nombre:"Caram, Lucas",marca:"Chevrolet"},
+        {n:"22",nombre:"Buduba, Pablo",marca:"Chevrolet"},{n:"23",nombre:"Medici, Santiago",marca:"Ford"},
+        {n:"24",nombre:"Redondo, Luis",marca:"Chevrolet"},{n:"25",nombre:"Gallego, Mauricio",marca:"Chrysler"},
+        {n:"26",nombre:"Gasparri, Marcos",marca:"Ford"},{n:"27",nombre:"Di Scala, Luciano",marca:"Ford"},
+        {n:"28",nombre:"Caro, Claudio",marca:"Chevrolet"},{n:"29",nombre:"Barragán, Guillermo",marca:"Ford"},
+        {n:"30",nombre:"Larribe, Pedro | Fauda, Emmanuel",marca:"Chevrolet"},{n:"31",nombre:"Fontán, Andrés",marca:"Ford"},
+        {n:"32",nombre:"Roncari, César",marca:"Chevrolet"},{n:"33",nombre:"Montes, Omar",marca:""},
+        {n:"34",nombre:"Alberghini, Diego Sebastián",marca:"Ford"},{n:"35",nombre:"Walter, Kevin",marca:"Chevrolet"},
+        {n:"36",nombre:"Cunqueiro, Marcio",marca:"Ford"},{n:"37",nombre:"Boccanera, Bruno",marca:"Ford"}
+      ],
+      campeonato:{fechas:"4 fechas disputadas", tabla:[
+        {pos:1,n:"3",nombre:"Dimuro, Juan Esteban",pts:"163",wins:3},
+        {pos:2,n:"5",nombre:"Morón, Nahuel",pts:"151",wins:2},
+        {pos:3,n:"10",nombre:"Durán, Ariel",pts:"115",wins:2},
+        {pos:4,n:"6",nombre:"Climente, Carlos",pts:"90,5"},
+        {pos:5,n:"12",nombre:"Gusmeroli, Agustín",pts:"86"},
+        {pos:6,n:"15",nombre:"Marcos, Rafael",pts:"83",wins:1},
+        {pos:7,n:"17",nombre:"Calamante, Martín",pts:"79,5"},
+        {pos:8,n:"7",nombre:"Rapari, Darío",pts:"44"},
+        {pos:9,n:"2",nombre:"Ianni, Ariel",pts:"41"},
+        {pos:10,n:"11",nombre:"Tamagno, Francisco",pts:"34"},
+        {pos:11,n:"32",nombre:"Roncari, César",pts:"25"},
+        {pos:12,n:"34",nombre:"Alberghini, Diego",pts:"25"},
+        {pos:13,n:"20",nombre:"Rosconi, Juan Ezequiel",pts:"20"},
+        {pos:14,n:"35",nombre:"Walter, Kevin",pts:"18"},
+        {pos:15,n:"9",nombre:"López de Calatayud, Julio",pts:"15"},
+        {pos:16,n:"18",nombre:"Losada, Omar",pts:"0"},
+        {pos:17,n:"21",nombre:"Caram, Lucas",pts:"0"}
+      ]}
+    }
+  ]
+};
+
+/* ===========================================================================
+   RENDER
+   =========================================================================== */
+const state = { cat: DATA.categories[0].id, view: "pilotos", q: "", dia: 0 };
+const $ = s => document.querySelector(s);
+const catById = id => DATA.categories.find(c => c.id === id);
+const numval = n => { const x = parseInt(n, 10); return isNaN(x) ? 1e9 : x; };
+const posColor = p => p===1 ? "#e9c454" : p===2 ? "#c7ccd4" : p===3 ? "#cd7f4a" : "var(--muted)";
+
+function setAccent(c){ document.documentElement.style.setProperty('--acc', c.acc); }
+
+function renderCats(){
+  const el = $("#cats"); el.innerHTML = "";
+  DATA.categories.forEach(c=>{
+    const b = document.createElement("button");
+    b.className = "cat"; b.role = "tab";
+    b.setAttribute("aria-selected", c.id===state.cat);
+    b.style.setProperty("--cat-acc", c.acc);
+    b.innerHTML = `<span class="dot" style="background:${c.acc}"></span>${c.short}`;
+    b.onclick = ()=>{ state.cat=c.id; state.q=""; setAccent(c); render(); };
+    el.appendChild(b);
+  });
+}
+
+function renderViews(){
+  document.querySelectorAll(".view-btn").forEach(b=>{
+    const on = b.dataset.view===state.view;
+    b.setAttribute("aria-selected", on);
+    b.onclick = ()=>{ state.view=b.dataset.view; state.q=""; render(); };
+  });
+}
+
+function pilotosView(c){
+  const q = state.q.trim().toLowerCase();
+  const list = c.pilotos.filter(p=>{
+    if(!q) return true;
+    return (p.nombre+" "+(p.equipo||"")+" "+(p.marca||"")+" "+p.n).toLowerCase().includes(q);
+  }).sort((a,b)=> numval(a.n) - numval(b.n));
+  const rows = list.map(p=>{
+    const parts = [];
+    if(p.equipo) parts.push(p.equipo);
+    let veh = "";
+    if(p.marca) veh = `<span class="marca">${p.marca}</span>${p.modelo?" · "+p.modelo:""}`;
+    const sub = [p.equipo, veh].filter(Boolean).join(" &nbsp;·&nbsp; ");
+    return `<div class="row">
+      <div class="num">${p.n}</div>
+      <div class="who">
+        <div class="name">${p.nombre}</div>
+        ${sub?`<div class="sub">${sub}</div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="meta">
+      <span class="count">${list.length}</span><span>pilotos${q?" (filtrado)":" inscriptos"}</span>
+      <input class="search" id="q" placeholder="Buscar piloto, equipo…" value="${state.q.replace(/"/g,'&quot;')}" autocomplete="off">
+    </div>
+    ${list.length?rows:`<div class="empty"><div class="big">Sin resultados</div>Probá con otro nombre o número.</div>`}`;
+}
+
+function campeonatoView(c){
+  const camp = c.campeonato;
+  if(!camp){
+    return `<div class="empty">
+      <div class="big">Campeonato en camino</div>
+      La tabla de ${c.name} se completa automáticamente cuando el scraper lee la página oficial de la categoría.
+    </div>`;
+  }
+  const t = camp.tabla;
+  const top = t.slice(0,3);
+  const order = [top[1], top[0], top[2]].filter(Boolean); // 2 - 1 - 3
+  const podium = order.map(p=>{
+    const cls = p.pos===1?"pod p1":"pod";
+    return `<div class="${cls}" style="--pos-c:${posColor(p.pos)}">
+      <div class="pos">${p.pos}°</div>
+      <div class="pn">${shortName(p.nombre)}</div>
+      <div class="pnum">#${p.n}</div>
+      <div class="pts">${p.pts}<span>pts</span></div>
+    </div>`;
+  }).join("");
+  const rows = t.map(p=>{
+    const lead = p.pos===1?" lead":"";
+    const marca = p.marca?`<em>${p.marca}</em>`:"";
+    const wins = p.wins?` 🏆${p.wins}`:"";
+    return `<div class="st${lead}">
+      <div class="p">${p.pos}</div>
+      <div class="cn">#${p.n}</div>
+      <div class="sn">${p.nombre}${wins}${marca}</div>
+      <div class="sp">${p.pts}</div>
+    </div>`;
+  }).join("");
+  return `<div class="podium">${podium}</div>
+    <div class="tbl-h"><h2>Posiciones</h2><span class="fechas">${camp.fechas}</span></div>
+    ${rows}`;
+}
+
+function accOf(catId){ const c = catById(catId); return c ? c.acc : "var(--muted)"; }
+function shortOf(catId){ const c = catById(catId); return c ? c.short : catId; }
+
+function cronogramaView(){
+  const cr = DATA.cronograma;
+  if(!cr || !cr.dias || !cr.dias.length){
+    return `<div class="empty"><div class="big">Cronograma en camino</div>
+      Los horarios del sábado y domingo se cargan desde el panel.</div>`;
+  }
+  const di = Math.min(state.dia, cr.dias.length-1);
+  const tabs = cr.dias.map((d,i)=>
+    `<button class="daytab" role="tab" aria-selected="${i===di}" onclick="setDia(${i})">${d.dia}</button>`
+  ).join("");
+  const rows = (cr.dias[di].sesiones||[]).map(s=>{
+    const chip = s.cat
+      ? `<span class="chip" style="--chip-c:${accOf(s.cat)}">${shortOf(s.cat)}</span>`
+      : `<span class="chip all">Todas</span>`;
+    return `<div class="ses">
+      <div class="h">${s.hora||"--:--"}</div>
+      <div class="act">${s.actividad}</div>
+      ${chip}
+    </div>`;
+  }).join("");
+  const nota = cr.ejemplo ? `<div class="note">Horarios de ejemplo — se cargan y editan desde el panel.</div>` : "";
+  return `${nota}<div class="daytabs" role="tablist">${tabs}</div>${rows}`;
+}
+window.setDia = i => { state.dia = i; render(); };
+
+function shortName(full){
+  // "Werner, Mariano" -> "Werner"; "López de Calatayud, Julio" -> "López de Calatayud"
+  return full.split(",")[0].trim();
+}
+
+const dismissed = new Set();
+function renderAvisos(){
+  const box = $("#avisos");
+  const list = (DATA.avisos||[]).filter(a=>!dismissed.has(a.id) && (!a.cat || a.cat===state.cat));
+  box.innerHTML = list.map(a=>`
+    <div class="aviso" data-id="${a.id}">
+      <span class="bell" aria-hidden="true">🔔</span>
+      <div class="txt"><b>Aviso</b> · ${a.txt}</div>
+      <button class="x" aria-label="Cerrar aviso" data-x="${a.id}">✕</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-x]").forEach(b=>{
+    b.onclick = ()=>{ dismissed.add(b.dataset.x); renderAvisos(); };
+  });
+}
+
+function render(){
+  const c = catById(state.cat);
+  setAccent(c);
+  renderCats(); renderViews(); renderAvisos();
+  $("#content").innerHTML =
+    state.view==="pilotos" ? pilotosView(c) :
+    state.view==="campeonato" ? campeonatoView(c) :
+    cronogramaView();
+  const q = $("#q");
+  if(q){
+    q.oninput = e=>{
+      state.q = e.target.value;
+      // re-render only the list area to keep focus
+      const c2 = catById(state.cat);
+      $("#content").innerHTML = pilotosView(c2);
+      const nq = $("#q"); nq.focus();
+      nq.setSelectionRange(nq.value.length, nq.value.length);
+      nq.oninput = q.oninput;
+    };
+  }
+  $("#foot").innerHTML =
+    `Lista de la fecha · Actualizada ${DATA.updated}.<br>
+     Editable en cualquier momento. Número, nombre, equipo y puntos.`;
+}
+
+render();
+</script>
+</body>
+</html>

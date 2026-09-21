@@ -1,0 +1,268 @@
+# -*- coding: utf-8 -*-
+"""
+main.py — Backend de La lista (FastAPI).
+
+  Público:
+    GET  /api/data                 -> categorías + pilotos + campeonato
+    GET  /api/avisos?cat=tcpk      -> avisos vigentes
+    POST /api/pay                  -> crea preferencia Mercado Pago, devuelve init_point
+    GET  /api/access?device=...    -> {paid: bool}
+    POST /api/webhook              -> notificaciones de Mercado Pago
+  Admin (header  Authorization: Bearer <ADMIN_TOKEN>):
+    GET/POST/DELETE /api/admin/pilotos ...
+    POST/DELETE     /api/admin/avisos ...
+    PUT             /api/admin/campeonato/{cat}
+    POST            /api/admin/login   -> valida la clave
+  Panel:
+    GET  /admin                    -> panel web (admin.html)
+"""
+import os
+from pathlib import Path
+
+from fastapi import FastAPI, Depends, HTTPException, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
+
+from db import create_store, CATS_META, CAT_IDS
+
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "cambiame")           # la "clave" del panel
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "").strip()   # token de Mercado Pago
+PRICE_ARS = float(os.getenv("PRICE_ARS", "1500"))            # monto fijo
+PUBLIC_API = os.getenv("PUBLIC_API_URL", "").rstrip("/")     # url pública del backend
+PUBLIC_WEB = os.getenv("PUBLIC_WEB_URL", "").rstrip("/")     # url pública de la PWA
+CORS_ORIGINS = [o for o in os.getenv("CORS_ORIGINS", "*").split(",") if o]
+
+app = FastAPI(title="La lista API")
+app.add_middleware(
+    CORSMiddleware, allow_origins=CORS_ORIGINS or ["*"],
+    allow_methods=["*"], allow_headers=["*"],
+)
+store = create_store()
+
+
+@app.on_event("startup")
+async def _startup():
+    await store.connect()
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    await store.close()
+
+
+# ----- auth -----
+def require_admin(authorization: str = Header(default="")):
+    token = authorization[7:] if authorization.lower().startswith("bearer ") else authorization
+    if not token or token != ADMIN_TOKEN:
+        raise HTTPException(401, "Clave inválida")
+    return True
+
+
+# ----- modelos -----
+class Piloto(BaseModel):
+    n: str
+    nombre: str
+    equipo: str = ""
+    marca: str = ""
+    modelo: str = ""
+
+
+class AvisoIn(BaseModel):
+    txt: str = Field(min_length=1, max_length=400)
+    cat: str | None = None
+
+
+class CampeonatoIn(BaseModel):
+    fechas: str = ""
+    tabla: list[dict]
+
+
+class Sesion(BaseModel):
+    hora: str = ""
+    cat: str | None = None          # None = general / todas
+    actividad: str
+
+
+class DiaCronograma(BaseModel):
+    dia: str                        # "Sábado", "Domingo"
+    sesiones: list[Sesion] = []
+
+
+class CronogramaIn(BaseModel):
+    dias: list[DiaCronograma] = []
+
+
+class PayIn(BaseModel):
+    device: str = Field(min_length=6, max_length=100)
+
+
+def _check_cat(cat: str):
+    if cat not in CAT_IDS:
+        raise HTTPException(404, "Categoría inexistente")
+
+
+# =====================================================================
+# PÚBLICO
+# =====================================================================
+@app.get("/api/health")
+async def health():
+    return {"ok": True, "mp": bool(MP_ACCESS_TOKEN)}
+
+
+@app.get("/api/data")
+async def get_data():
+    cats = []
+    for meta in CATS_META:
+        cats.append({**meta,
+                     "pilotos": await store.list_pilotos(meta["id"]),
+                     "campeonato": await store.get_campeonato(meta["id"])})
+    return {"updated": await store.get_updated(),
+            "cronograma": await store.get_cronograma(),
+            "categories": cats}
+
+
+@app.get("/api/cronograma")
+async def get_cronograma():
+    return await store.get_cronograma()
+
+
+@app.get("/api/avisos")
+async def get_avisos(cat: str | None = None):
+    return await store.list_avisos(cat)
+
+
+# =====================================================================
+# ADMIN
+# =====================================================================
+@app.post("/api/admin/login")
+async def admin_login(_=Depends(require_admin)):
+    return {"ok": True}
+
+
+@app.get("/api/admin/pilotos")
+async def admin_list_pilotos(cat: str, _=Depends(require_admin)):
+    _check_cat(cat)
+    return await store.list_pilotos(cat)
+
+
+@app.post("/api/admin/pilotos")
+async def admin_upsert_piloto(cat: str, p: Piloto, _=Depends(require_admin)):
+    _check_cat(cat)
+    await store.upsert_piloto(cat, p.model_dump())
+    return {"ok": True}
+
+
+@app.delete("/api/admin/pilotos/{cat}/{n}")
+async def admin_delete_piloto(cat: str, n: str, _=Depends(require_admin)):
+    _check_cat(cat)
+    await store.delete_piloto(cat, n)
+    return {"ok": True}
+
+
+@app.put("/api/admin/campeonato/{cat}")
+async def admin_set_campeonato(cat: str, c: CampeonatoIn, _=Depends(require_admin)):
+    _check_cat(cat)
+    await store.set_campeonato(cat, c.model_dump())
+    return {"ok": True}
+
+
+@app.put("/api/admin/cronograma")
+async def admin_set_cronograma(c: CronogramaIn, _=Depends(require_admin)):
+    for d in c.dias:
+        for s in d.sesiones:
+            if s.cat:
+                _check_cat(s.cat)
+    await store.set_cronograma(c.model_dump())
+    return {"ok": True}
+
+
+@app.post("/api/admin/avisos")
+async def admin_add_aviso(a: AvisoIn, _=Depends(require_admin)):
+    if a.cat:
+        _check_cat(a.cat)
+    return await store.add_aviso(a.cat, a.txt)
+
+
+@app.delete("/api/admin/avisos/{aid}")
+async def admin_delete_aviso(aid: str, _=Depends(require_admin)):
+    await store.delete_aviso(aid)
+    return {"ok": True}
+
+
+# =====================================================================
+# MERCADO PAGO
+# =====================================================================
+def _mp():
+    if not MP_ACCESS_TOKEN:
+        raise HTTPException(503, "Mercado Pago no configurado (falta MP_ACCESS_TOKEN)")
+    import mercadopago
+    return mercadopago.SDK(MP_ACCESS_TOKEN)
+
+
+@app.post("/api/pay")
+async def create_payment(body: PayIn):
+    sdk = _mp()
+    pref = {
+        "items": [{
+            "title": "La lista — acceso carreras Balcarce",
+            "quantity": 1,
+            "currency_id": "ARS",
+            "unit_price": PRICE_ARS,
+        }],
+        "external_reference": body.device,
+        "back_urls": {
+            "success": f"{PUBLIC_WEB}/?paid=1",
+            "failure": f"{PUBLIC_WEB}/?paid=0",
+            "pending": f"{PUBLIC_WEB}/?paid=pending",
+        },
+        "auto_return": "approved",
+        "notification_url": f"{PUBLIC_API}/api/webhook",
+    }
+    resp = sdk.preference().create(pref)
+    data = resp.get("response", {})
+    init_point = data.get("init_point") or data.get("sandbox_init_point")
+    if not init_point:
+        raise HTTPException(502, f"Mercado Pago no devolvió init_point: {data}")
+    return {"init_point": init_point, "preference_id": data.get("id")}
+
+
+@app.post("/api/webhook")
+async def mp_webhook(request: Request):
+    """Mercado Pago avisa acá. Nunca confiamos en el cliente: pedimos el pago
+    a la API de MP y recién si está 'approved' habilitamos el acceso."""
+    params = dict(request.query_params)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    ptype = params.get("type") or params.get("topic") or body.get("type") or body.get("topic")
+    pid = (params.get("data.id") or params.get("id")
+           or (body.get("data") or {}).get("id") or body.get("id"))
+    if ptype in ("payment", "merchant_order") and pid and MP_ACCESS_TOKEN:
+        try:
+            sdk = _mp()
+            info = sdk.payment().get(pid).get("response", {})
+            if info.get("status") == "approved" and info.get("external_reference"):
+                await store.set_access(info["external_reference"], str(pid))
+        except Exception as e:
+            print("[webhook] error verificando pago:", e)
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/access")
+async def check_access(device: str):
+    return {"paid": await store.is_paid(device)}
+
+
+# =====================================================================
+# PANEL ADMIN (estático)
+# =====================================================================
+@app.get("/admin")
+async def admin_page():
+    return FileResponse(Path(__file__).parent / "admin.html")
+
+
+@app.get("/")
+async def root():
+    return {"service": "La lista API", "admin": "/admin", "health": "/api/health"}
