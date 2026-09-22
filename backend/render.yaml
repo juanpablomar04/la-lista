@@ -11,6 +11,8 @@ services:
         value: "3.12.7"
       - key: ADMIN_TOKEN
         sync: false
+      - key: COMP_CODE
+        sync: false
       - key: MONGODB_URI
         sync: false
       - key: MP_ACCESS_TOKEN

@@ -37,6 +37,7 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "cambiame")           # la "clave" del pa
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "").strip()   # token de Mercado Pago
 PRICE_ARS = float(os.getenv("PRICE_ARS", "1500"))            # monto fijo
 PAYWALL = os.getenv("PAYWALL_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+COMP_CODE = os.getenv("COMP_CODE", "").strip()               # código de acceso gratis (cortesía)
 PUBLIC_API = os.getenv("PUBLIC_API_URL", "").rstrip("/")     # url pública del backend
 PUBLIC_WEB = os.getenv("PUBLIC_WEB_URL", "").rstrip("/")     # url pública de la PWA
 CORS_ORIGINS = [o for o in os.getenv("CORS_ORIGINS", "*").split(",") if o]
@@ -103,6 +104,11 @@ class CronogramaIn(BaseModel):
 
 class PayIn(BaseModel):
     device: str = Field(min_length=6, max_length=100)
+
+
+class CompIn(BaseModel):
+    device: str = Field(min_length=6, max_length=100)
+    code: str = Field(min_length=1, max_length=100)
 
 
 def _check_cat(cat: str):
@@ -274,6 +280,11 @@ async def admin_marcar_facturada(fecha: str, _=Depends(require_admin)):
     return {"fecha": fecha, "facturada": estado}
 
 
+@app.get("/api/admin/comp-link")
+async def admin_comp_link(_=Depends(require_admin)):
+    return {"code": COMP_CODE or None}
+
+
 # =====================================================================
 # MERCADO PAGO
 # =====================================================================
@@ -345,6 +356,15 @@ async def mp_webhook(request: Request):
 @app.get("/api/access")
 async def check_access(device: str):
     return {"paid": await store.is_paid(device)}
+
+
+@app.post("/api/comp")
+async def redeem_comp(body: CompIn):
+    """Acceso de cortesía: si el código coincide, desbloquea ese dispositivo."""
+    if COMP_CODE and body.code == COMP_CODE:
+        await store.set_access(body.device, "cortesia")
+        return {"ok": True}
+    raise HTTPException(403, "Código inválido")
 
 
 # =====================================================================

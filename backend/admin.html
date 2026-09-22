@@ -112,6 +112,12 @@
       <div id="resumen" style="margin-top:8px"></div>
     </div>
 
+    <div class="card">
+      <b>Acceso de cortesía</b>
+      <p class="muted" style="margin:4px 0 2px">Abrí este link en cualquier teléfono para desbloquear la app sin pagar (para vos o el equipo). Mantenelo privado.</p>
+      <div id="compbox" style="margin-top:8px"></div>
+    </div>
+
     <div class="row" style="margin-top:16px;justify-content:flex-end">
       <button class="btn2 btn-sm" onclick="logout()">Salir</button>
     </div>
@@ -158,6 +164,7 @@ function boot(){
   loadAvisos();
   loadCrono();
   loadResumen();
+  loadCompLink();
 }
 function selCat(c){
   cat = c;
@@ -269,6 +276,24 @@ async function loadResumen(){
 async function marcarFacturada(fecha){
   await api("/api/admin/resumen/"+fecha+"/facturar",{method:"POST"});
   loadResumen();
+}
+
+async function loadCompLink(){
+  const r = await api("/api/admin/comp-link");
+  if(!r.code){
+    $("#compbox").innerHTML = '<p class="muted">Configurá la variable <b>COMP_CODE</b> en el backend (Render) para generar el link.</p>';
+    return;
+  }
+  const link = location.origin + "/?comp=" + encodeURIComponent(r.code);
+  $("#compbox").innerHTML = `
+    <input id="complink" readonly value="${link}">
+    <div class="row" style="margin-top:8px"><button class="btn2 btn-sm" onclick="copyComp()">Copiar link</button></div>`;
+}
+function copyComp(){
+  const i = $("#complink"); i.select(); i.setSelectionRange(0, 99999);
+  const done = ()=>toast("Link copiado");
+  if(navigator.clipboard){ navigator.clipboard.writeText(i.value).then(done).catch(()=>{document.execCommand("copy");done();}); }
+  else { document.execCommand("copy"); done(); }
 }
 
 // auto-login si ya hay clave guardada
