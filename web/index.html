@@ -89,6 +89,12 @@
     font-size:11.5px;color:var(--muted);margin-top:2px;text-transform:none}
   .whereami{margin-left:auto;text-align:right;font-size:11px;color:var(--muted);line-height:1.3}
   .whereami b{color:var(--dust);font-weight:600}
+  .live{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);
+    background:var(--graphite);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .live b{color:var(--bone);font-family:"Barlow Condensed";font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+  .live-dot{width:9px;height:9px;border-radius:50%;background:#2ecc71;box-shadow:0 0 0 0 rgba(46,204,113,.6);
+    animation:livepulse 1.8s infinite}
+  @keyframes livepulse{0%{box-shadow:0 0 0 0 rgba(46,204,113,.55)}70%{box-shadow:0 0 0 8px rgba(46,204,113,0)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}
 
   /* Category switch */
   .cats{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
@@ -259,8 +265,6 @@
   <footer id="foot"></footer>
 </div>
 
-<div id="gate" class="gate hidden"></div>
-
 <script>
 /* ===========================================================================
    DATOS — snapshot real tomado el 21/09/2026 de las páginas oficiales.
@@ -276,6 +280,10 @@ let DATA = {
     {id:"a2", cat:"tcpk", txt:"TC PK: se sumó una pickup más a la nómina de esta fecha."}
   ],
   cronograma: { ejemplo:true, dias:[
+    {dia:"Viernes", sesiones:[
+      {hora:"16:00", cat:null,   actividad:"Entrenamientos libres"},
+      {hora:"18:30", cat:"tsc",  actividad:"Clasificación"}
+    ]},
     {dia:"Sábado", sesiones:[
       {hora:"09:00", cat:"tcpk",  actividad:"Pruebas"},
       {hora:"10:15", cat:"tcppk", actividad:"Pruebas"},
@@ -588,9 +596,7 @@ function render(){
      Editable en cualquier momento. Número, nombre, equipo y puntos.`;
 }
 
-// ===== Pago / acceso =====
-let CONFIG = { paywall:false, price:"1500", currency:"ARS", demo:false };
-let PAID = false;
+// ===== Presencia en vivo =====
 const DEVICE = (function(){
   let d = localStorage.getItem("lalista_device");
   if(!d){
@@ -603,7 +609,7 @@ const DEVICE = (function(){
 
 // Arranque: intenta leer la API (mismo origen). Si falla, usa los datos embebidos.
 async function boot(){
-  let usingFallback = true;
+  let hasBackend = false;
   try{
     const [d, av] = await Promise.all([
       fetch("/api/data").then(r=>{ if(!r.ok) throw 0; return r.json(); }),
@@ -617,76 +623,26 @@ async function boot(){
         categories: d.categories
       };
       if(!DATA.categories.find(c=>c.id===state.cat)) state.cat = DATA.categories[0].id;
-      usingFallback = false;
+      hasBackend = true;
     }
   }catch(e){ /* sin backend: queda el snapshot embebido */ }
-
-  // Config del cobro + acceso de este dispositivo.
-  try{
-    CONFIG = await fetch("/api/config").then(r=>{ if(!r.ok) throw 0; return r.json(); });
-    const a = await fetch("/api/access?device="+encodeURIComponent(DEVICE)).then(r=>r.json());
-    PAID = !!(a && a.paid);
-  }catch(e){
-    // Sin backend: si estamos en la vista previa (datos embebidos), mostramos
-    // el cobro en modo demo. Si el backend está arriba pero config falló, no bloqueamos.
-    CONFIG = usingFallback ? { paywall:true, price:"1500", currency:"ARS", demo:true }
-                           : { paywall:false };
-  }
-
   render();
-  updateGate();
-  if(new URLSearchParams(location.search).get("paid")==="1"){ pollPaid(); }
+  if(hasBackend) startPresence();
 }
 
-function updateGate(){
-  const g = $("#gate");
-  if(!(CONFIG.paywall && !PAID)){ g.classList.add("hidden"); return; }
-  g.classList.remove("hidden");
-  g.innerHTML = `
-    <div class="gate-card">
-      <div class="gate-flag" aria-hidden="true"></div>
-      <h2>La lista</h2>
-      <p>Pilotos, campeonatos, cronograma y avisos del fin de semana de carreras en Balcarce.</p>
-      <div class="gate-price">$${CONFIG.price}<span> ${CONFIG.currency||"ARS"}</span></div>
-      <div class="gate-err" id="g_err"></div>
-      <button class="gate-btn" id="payBtn">Pagar con Mercado Pago</button>
-      <p class="gate-fine">Pago único. Se desbloquea en este teléfono.</p>
-      ${CONFIG.demo ? '<div class="gate-demo">Vista previa del cobro</div><button class="gate-skip" id="skipBtn">Ver la app sin pagar</button>' : ''}
-    </div>`;
-  $("#payBtn").onclick = pay;
-  const sk = $("#skipBtn"); if(sk) sk.onclick = ()=> g.classList.add("hidden");
-}
-
-async function pay(){
-  if(CONFIG.demo){
-    alert("En vivo, este botón te lleva al checkout de Mercado Pago para pagar $"+CONFIG.price+". "
-        + "Al aprobarse, la app se desbloquea sola en este teléfono.");
-    return;
-  }
-  const btn = $("#payBtn"), err = $("#g_err");
-  btn.disabled = true; btn.textContent = "Abriendo Mercado Pago…";
+// Latido de presencia: cada app abierta pega cada ~20s para que el panel /admin
+// pueda contar los conectados. El número NO se muestra en la app (solo en admin).
+async function pingOnce(){
+  if(document.visibilityState !== "visible") return;   // solo cuenta si está a la vista
   try{
-    const r = await fetch("/api/pay", {method:"POST", headers:{"Content-Type":"application/json"},
-                                       body:JSON.stringify({device:DEVICE})});
-    if(!r.ok) throw new Error(await r.text());
-    const d = await r.json();
-    if(d.init_point){ location.href = d.init_point; return; }
-    throw new Error("sin init_point");
-  }catch(e){
-    btn.disabled = false; btn.textContent = "Pagar con Mercado Pago";
-    err.textContent = "No se pudo iniciar el pago. Probá de nuevo en un momento.";
-  }
+    await fetch("/api/ping", {method:"POST", headers:{"Content-Type":"application/json"},
+                              body:JSON.stringify({device:DEVICE})});
+  }catch(e){}
 }
-
-// Al volver de Mercado Pago, el webhook puede tardar unos segundos: reintentamos.
-async function pollPaid(){
-  for(let i=0;i<8;i++){
-    try{
-      const a = await fetch("/api/access?device="+encodeURIComponent(DEVICE)).then(r=>r.json());
-      if(a && a.paid){ PAID=true; updateGate(); history.replaceState({},"",location.pathname); return; }
-    }catch(e){}
-    await new Promise(r=>setTimeout(r,2000));
-  }
+function startPresence(){
+  pingOnce();
+  setInterval(pingOnce, 20000);
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") pingOnce(); });
 }
 
 boot();

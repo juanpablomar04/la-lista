@@ -58,6 +58,21 @@
 
   <!-- APP -->
   <div id="app" class="hidden">
+    <div class="card" style="border-color:#2ecc71">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="muted" style="font-size:12px">Conectados ahora</div>
+          <div style="font-family:'Barlow Condensed',system-ui;font-weight:700;font-size:48px;line-height:1"><span id="liveNow">–</span> <span style="font-size:20px;color:var(--mut)">en vivo</span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted" style="font-size:12px">Pico</div>
+          <div style="font-family:'Barlow Condensed',system-ui;font-weight:700;font-size:30px;line-height:1;color:#2ecc71" id="livePeak">–</div>
+        </div>
+      </div>
+      <div id="livechart" style="margin-top:12px"></div>
+      <p class="muted" style="margin-top:6px;font-size:11.5px">Personas con la app abierta en este momento. La curva se actualiza sola.</p>
+    </div>
+
     <div class="cats" id="cats"></div>
 
     <div class="card">
@@ -165,6 +180,8 @@ function boot(){
   loadCrono();
   loadResumen();
   loadCompLink();
+  loadStats();
+  if(!window._statsTimer) window._statsTimer = setInterval(loadStats, 5000);
 }
 function selCat(c){
   cat = c;
@@ -224,12 +241,14 @@ async function delAviso(id){
 
 // ----- cronograma -----
 let crono = {dias:[]};
-const DIAS = ["Sábado","Domingo"];
+const DIAS = ["Viernes","Sábado","Domingo"];
 function catOpts(){ return '<option value="">Todas</option>'+CATS.map(c=>`<option value="${c.id}">${c.short}</option>`).join(""); }
 
 async function loadCrono(){
-  try{ crono = await (await fetch(API+"/api/cronograma")).json(); }catch(e){ crono={dias:[]}; }
-  if(!crono || !crono.dias || !crono.dias.length){ crono = {dias: DIAS.map(d=>({dia:d, sesiones:[]}))}; }
+  let data = {dias:[]};
+  try{ data = await (await fetch(API+"/api/cronograma")).json(); }catch(e){}
+  const prev = {}; (data.dias||[]).forEach(d=> prev[d.dia] = d.sesiones||[]);
+  crono = { dias: DIAS.map(d=>({dia:d, sesiones: prev[d] || []})) };  // siempre Viernes/Sábado/Domingo, en orden
   renderCrono();
 }
 function renderCrono(){
@@ -294,6 +313,25 @@ function copyComp(){
   const done = ()=>toast("Link copiado");
   if(navigator.clipboard){ navigator.clipboard.writeText(i.value).then(done).catch(()=>{document.execCommand("copy");done();}); }
   else { document.execCommand("copy"); done(); }
+}
+
+async function loadStats(){
+  let s; try{ s = await api("/api/admin/stats"); }catch(e){ return; }
+  $("#liveNow").textContent = s.live;
+  $("#livePeak").textContent = s.peak;
+  drawChart(s.series||[]);
+}
+function drawChart(series){
+  const el = $("#livechart");
+  if(!series.length){ el.innerHTML='<p class="muted" style="font-size:12px">Todavía sin datos. Aparece cuando haya gente conectada.</p>'; return; }
+  const W=560,H=90,pad=4, n=series.length;
+  const max=Math.max(4,...series.map(p=>p.count));
+  const pts=series.map((p,i)=>[pad+(i/Math.max(1,n-1))*(W-2*pad), H-pad-(p.count/max)*(H-2*pad)]);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=line+` L ${W-pad} ${H-pad} L ${pad} ${H-pad} Z`;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" style="display:block">
+    <path d="${area}" fill="rgba(46,204,113,.15)"/>
+    <path d="${line}" fill="none" stroke="#2ecc71" stroke-width="2"/></svg>`;
 }
 
 // auto-login si ya hay clave guardada

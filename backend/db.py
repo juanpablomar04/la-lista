@@ -41,6 +41,10 @@ class MemStore:
         self.access = {}                              # device -> {paid, payment_id, ts}
         self.ventas = {}                              # device -> {datos comprador + factura}
         self.facturadas = set()                       # fechas YYYY-MM-DD ya facturadas en ARCA
+        self.presence = {}                            # device -> último latido (epoch)
+        self.peak = 0                                 # máximo de conectados en simultáneo
+        self.stats = []                               # [{t, count}] muestreado ~1/min
+        self._last_sample = 0.0
         self.cronograma = {"dias": []}                # {dias:[{dia, sesiones:[{hora,cat,actividad}]}]}
         self.updated = _now_iso()
         self._aid = 0
@@ -114,6 +118,29 @@ class MemStore:
             return False
         self.facturadas.add(fecha)
         return True
+
+    async def ping(self, device):
+        self.presence[device] = time.time()
+
+    async def count_live(self, window=45):
+        cut = time.time() - window
+        return sum(1 for t in self.presence.values() if t >= cut)
+
+    async def get_peak(self):
+        return self.peak
+
+    async def set_peak(self, v):
+        self.peak = v
+
+    async def sample_stat(self, count):
+        now = time.time()
+        if now - self._last_sample >= 55:
+            self._last_sample = now
+            self.stats.append({"t": int(now), "count": count})
+            self.stats = self.stats[-1000:]
+
+    async def get_stats(self):
+        return self.stats[-720:]
 
     async def get_cronograma(self):
         return self.cronograma
@@ -218,6 +245,33 @@ class MongoStore:
         await self.db.meta.update_one(
             {"_id": "facturadas"}, {"$set": {"value": sorted(cur)}}, upsert=True)
         return estado
+
+    async def ping(self, device):
+        await self.db.presence.update_one(
+            {"device": device}, {"$set": {"device": device, "last": time.time()}}, upsert=True)
+
+    async def count_live(self, window=45):
+        cut = time.time() - window
+        return await self.db.presence.count_documents({"last": {"$gte": cut}})
+
+    async def get_peak(self):
+        m = await self.db.meta.find_one({"_id": "peak"})
+        return m["value"] if m else 0
+
+    async def set_peak(self, v):
+        await self.db.meta.update_one({"_id": "peak"}, {"$set": {"value": v}}, upsert=True)
+
+    async def sample_stat(self, count):
+        m = await self.db.meta.find_one({"_id": "laststat"})
+        last = m["value"] if m else 0
+        now = time.time()
+        if now - last >= 55:
+            await self.db.meta.update_one({"_id": "laststat"}, {"$set": {"value": now}}, upsert=True)
+            await self.db.stats.insert_one({"t": int(now), "count": count})
+
+    async def get_stats(self):
+        cur = self.db.stats.find({}, {"_id": 0}).sort("t", -1).limit(720)
+        return list(reversed([s async for s in cur]))
 
     async def get_updated(self):
         m = await self.db.meta.find_one({"_id": "updated"})

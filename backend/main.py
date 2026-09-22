@@ -111,6 +111,10 @@ class CompIn(BaseModel):
     code: str = Field(min_length=1, max_length=100)
 
 
+class PingIn(BaseModel):
+    device: str = Field(min_length=6, max_length=100)
+
+
 def _check_cat(cat: str):
     if cat not in CAT_IDS:
         raise HTTPException(404, "Categoría inexistente")
@@ -130,6 +134,24 @@ async def config():
     return {"paywall": PAYWALL and bool(MP_ACCESS_TOKEN),
             "price": int(PRICE_ARS) if PRICE_ARS == int(PRICE_ARS) else PRICE_ARS,
             "currency": "ARS"}
+
+
+@app.post("/api/ping")
+async def ping(body: PingIn):
+    """Latido de presencia: cada app abierta pega acá cada ~20s."""
+    await store.ping(body.device)
+    live = await store.count_live()
+    peak = await store.get_peak()
+    if live > peak:
+        await store.set_peak(live)
+        peak = live
+    await store.sample_stat(live)
+    return {"live": live, "peak": peak}
+
+
+@app.get("/api/live")
+async def live():
+    return {"live": await store.count_live(), "peak": await store.get_peak()}
 
 
 @app.get("/api/data")
@@ -283,6 +305,13 @@ async def admin_marcar_facturada(fecha: str, _=Depends(require_admin)):
 @app.get("/api/admin/comp-link")
 async def admin_comp_link(_=Depends(require_admin)):
     return {"code": COMP_CODE or None}
+
+
+@app.get("/api/admin/stats")
+async def admin_stats(_=Depends(require_admin)):
+    return {"live": await store.count_live(),
+            "peak": await store.get_peak(),
+            "series": await store.get_stats()}
 
 
 # =====================================================================
