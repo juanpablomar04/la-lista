@@ -32,6 +32,7 @@ from db import create_store, CATS_META, CAT_IDS
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "cambiame")           # la "clave" del panel
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "").strip()   # token de Mercado Pago
 PRICE_ARS = float(os.getenv("PRICE_ARS", "1500"))            # monto fijo
+PAYWALL = os.getenv("PAYWALL_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
 PUBLIC_API = os.getenv("PUBLIC_API_URL", "").rstrip("/")     # url pública del backend
 PUBLIC_WEB = os.getenv("PUBLIC_WEB_URL", "").rstrip("/")     # url pública de la PWA
 CORS_ORIGINS = [o for o in os.getenv("CORS_ORIGINS", "*").split(",") if o]
@@ -111,6 +112,14 @@ def _check_cat(cat: str):
 @app.get("/api/health")
 async def health():
     return {"ok": True, "mp": bool(MP_ACCESS_TOKEN)}
+
+
+@app.get("/api/config")
+async def config():
+    # El muro solo se activa si además hay token de MP, para no bloquear sin poder cobrar.
+    return {"paywall": PAYWALL and bool(MP_ACCESS_TOKEN),
+            "price": int(PRICE_ARS) if PRICE_ARS == int(PRICE_ARS) else PRICE_ARS,
+            "currency": "ARS"}
 
 
 @app.get("/api/data")

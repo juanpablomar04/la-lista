@@ -201,6 +201,27 @@
     border:1px solid var(--chip-c);color:var(--chip-c)}
   .chip.all{--chip-c:var(--muted)}
 
+  /* Pantalla de pago (Mercado Pago) */
+  .gate{position:fixed;inset:0;z-index:100;background:rgba(9,11,14,.94);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;padding-top:calc(24px + var(--safe-t));padding-bottom:calc(24px + var(--safe-b))}
+  .gate.hidden{display:none}
+  .gate-card{max-width:360px;width:100%;background:var(--graphite);border:1px solid var(--line);
+    border-radius:16px;padding:26px 22px;text-align:center}
+  .gate-flag{width:44px;height:44px;margin:0 auto 14px;border-radius:8px;background-color:#0c0e12;
+    background:conic-gradient(var(--bone) 90deg,transparent 0 180deg,var(--bone) 0 270deg,transparent 0) 0 0/22px 22px;outline:1px solid var(--line)}
+  .gate-card h2{font-family:"Barlow Condensed";font-weight:700;font-size:30px;letter-spacing:.03em;margin-bottom:6px}
+  .gate-card p{color:var(--muted);font-size:14px;line-height:1.45}
+  .gate-price{font-family:"Barlow Condensed";font-weight:700;font-size:44px;line-height:1;margin:18px 0 2px;color:var(--bone)}
+  .gate-price span{font-size:15px;color:var(--muted);font-weight:500}
+  .gate-btn{width:100%;margin-top:14px;padding:14px;border-radius:10px;background:#009ee3;color:#fff;
+    font-family:"Barlow",sans-serif;font-weight:700;font-size:16px;cursor:pointer;border:none}
+  .gate-btn:disabled{opacity:.6;cursor:default}
+  .gate-fine{margin-top:12px;font-size:12px;color:var(--muted)}
+  .gate-skip{margin-top:16px;background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:13px}
+  .gate-demo{margin-top:8px;font-size:11px;color:var(--acc);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+
   footer{margin:22px 16px 0;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.5}
   footer b{color:var(--dust);font-weight:600}
   .hidden{display:none}
@@ -232,6 +253,8 @@
 
   <footer id="foot"></footer>
 </div>
+
+<div id="gate" class="gate hidden"></div>
 
 <script>
 /* ===========================================================================
@@ -560,8 +583,22 @@ function render(){
      Editable en cualquier momento. Número, nombre, equipo y puntos.`;
 }
 
+// ===== Pago / acceso =====
+let CONFIG = { paywall:false, price:"1500", currency:"ARS", demo:false };
+let PAID = false;
+const DEVICE = (function(){
+  let d = localStorage.getItem("lalista_device");
+  if(!d){
+    d = "d-" + (self.crypto && crypto.randomUUID ? crypto.randomUUID()
+                : Date.now()+"-"+Math.random().toString(36).slice(2));
+    try{ localStorage.setItem("lalista_device", d); }catch(e){}
+  }
+  return d;
+})();
+
 // Arranque: intenta leer la API (mismo origen). Si falla, usa los datos embebidos.
 async function boot(){
+  let usingFallback = true;
   try{
     const [d, av] = await Promise.all([
       fetch("/api/data").then(r=>{ if(!r.ok) throw 0; return r.json(); }),
@@ -575,10 +612,76 @@ async function boot(){
         categories: d.categories
       };
       if(!DATA.categories.find(c=>c.id===state.cat)) state.cat = DATA.categories[0].id;
+      usingFallback = false;
     }
   }catch(e){ /* sin backend: queda el snapshot embebido */ }
+
+  // Config del cobro + acceso de este dispositivo.
+  try{
+    CONFIG = await fetch("/api/config").then(r=>{ if(!r.ok) throw 0; return r.json(); });
+    const a = await fetch("/api/access?device="+encodeURIComponent(DEVICE)).then(r=>r.json());
+    PAID = !!(a && a.paid);
+  }catch(e){
+    // Sin backend: si estamos en la vista previa (datos embebidos), mostramos
+    // el cobro en modo demo. Si el backend está arriba pero config falló, no bloqueamos.
+    CONFIG = usingFallback ? { paywall:true, price:"1500", currency:"ARS", demo:true }
+                           : { paywall:false };
+  }
+
   render();
+  updateGate();
+  if(new URLSearchParams(location.search).get("paid")==="1"){ pollPaid(); }
 }
+
+function updateGate(){
+  const g = $("#gate");
+  if(!(CONFIG.paywall && !PAID)){ g.classList.add("hidden"); return; }
+  g.classList.remove("hidden");
+  g.innerHTML = `
+    <div class="gate-card">
+      <div class="gate-flag" aria-hidden="true"></div>
+      <h2>La lista</h2>
+      <p>Pilotos, campeonatos, cronograma y avisos del fin de semana de carreras en Balcarce.</p>
+      <div class="gate-price">$${CONFIG.price}<span> ${CONFIG.currency||"ARS"}</span></div>
+      <button class="gate-btn" id="payBtn">Pagar con Mercado Pago</button>
+      <p class="gate-fine">Pago único. Se desbloquea en este teléfono.</p>
+      ${CONFIG.demo ? '<div class="gate-demo">Vista previa del cobro</div><button class="gate-skip" id="skipBtn">Ver la app sin pagar</button>' : ''}
+    </div>`;
+  $("#payBtn").onclick = pay;
+  const sk = $("#skipBtn"); if(sk) sk.onclick = ()=> g.classList.add("hidden");
+}
+
+async function pay(){
+  if(CONFIG.demo){
+    alert("En vivo, este botón te lleva al checkout de Mercado Pago para pagar $"+CONFIG.price+". "
+        + "Cuando el pago se aprueba, la app se desbloquea sola en este teléfono.");
+    return;
+  }
+  const btn = $("#payBtn"); btn.disabled = true; btn.textContent = "Abriendo Mercado Pago…";
+  try{
+    const r = await fetch("/api/pay", {method:"POST", headers:{"Content-Type":"application/json"},
+                                       body:JSON.stringify({device:DEVICE})});
+    if(!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    if(d.init_point){ location.href = d.init_point; return; }
+    throw new Error("sin init_point");
+  }catch(e){
+    btn.disabled = false; btn.textContent = "Pagar con Mercado Pago";
+    alert("No se pudo iniciar el pago. Probá de nuevo en un momento.");
+  }
+}
+
+// Al volver de Mercado Pago, el webhook puede tardar unos segundos: reintentamos.
+async function pollPaid(){
+  for(let i=0;i<8;i++){
+    try{
+      const a = await fetch("/api/access?device="+encodeURIComponent(DEVICE)).then(r=>r.json());
+      if(a && a.paid){ PAID=true; updateGate(); history.replaceState({},"",location.pathname); return; }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,2000));
+  }
+}
+
 boot();
 
 // Service worker (instalable + offline). Silencioso si el entorno no lo permite.
