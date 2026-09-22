@@ -221,6 +221,11 @@
   .gate-fine{margin-top:12px;font-size:12px;color:var(--muted)}
   .gate-skip{margin-top:16px;background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:13px}
   .gate-demo{margin-top:8px;font-size:11px;color:var(--acc);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+  .gate-form{margin-top:16px;display:flex;flex-direction:column;gap:8px;text-align:left}
+  .gate-form input{background:var(--graphite-2);border:1px solid var(--line);border-radius:9px;
+    color:var(--bone);font:inherit;font-size:15px;padding:11px 12px;width:100%}
+  .gate-form input:focus{outline:2px solid #009ee3;border-color:transparent}
+  .gate-err{color:#ff6b6b;font-size:12.5px;margin-top:8px;min-height:1.1em;text-align:left}
 
   footer{margin:22px 16px 0;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.5}
   footer b{color:var(--dust);font-weight:600}
@@ -643,6 +648,7 @@ function updateGate(){
       <h2>La lista</h2>
       <p>Pilotos, campeonatos, cronograma y avisos del fin de semana de carreras en Balcarce.</p>
       <div class="gate-price">$${CONFIG.price}<span> ${CONFIG.currency||"ARS"}</span></div>
+      <div class="gate-err" id="g_err"></div>
       <button class="gate-btn" id="payBtn">Pagar con Mercado Pago</button>
       <p class="gate-fine">Pago único. Se desbloquea en este teléfono.</p>
       ${CONFIG.demo ? '<div class="gate-demo">Vista previa del cobro</div><button class="gate-skip" id="skipBtn">Ver la app sin pagar</button>' : ''}
@@ -654,10 +660,11 @@ function updateGate(){
 async function pay(){
   if(CONFIG.demo){
     alert("En vivo, este botón te lleva al checkout de Mercado Pago para pagar $"+CONFIG.price+". "
-        + "Cuando el pago se aprueba, la app se desbloquea sola en este teléfono.");
+        + "Al aprobarse, la app se desbloquea sola en este teléfono.");
     return;
   }
-  const btn = $("#payBtn"); btn.disabled = true; btn.textContent = "Abriendo Mercado Pago…";
+  const btn = $("#payBtn"), err = $("#g_err");
+  btn.disabled = true; btn.textContent = "Abriendo Mercado Pago…";
   try{
     const r = await fetch("/api/pay", {method:"POST", headers:{"Content-Type":"application/json"},
                                        body:JSON.stringify({device:DEVICE})});
@@ -667,7 +674,7 @@ async function pay(){
     throw new Error("sin init_point");
   }catch(e){
     btn.disabled = false; btn.textContent = "Pagar con Mercado Pago";
-    alert("No se pudo iniciar el pago. Probá de nuevo en un momento.");
+    err.textContent = "No se pudo iniciar el pago. Probá de nuevo en un momento.";
   }
 }
 

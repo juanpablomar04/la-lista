@@ -39,6 +39,8 @@ class MemStore:
         self.campeonato = {c: None for c in CAT_IDS}  # cat -> {fechas, tabla}
         self.avisos = []                              # [{id, cat, txt, ts}]
         self.access = {}                              # device -> {paid, payment_id, ts}
+        self.ventas = {}                              # device -> {datos comprador + factura}
+        self.facturadas = set()                       # fechas YYYY-MM-DD ya facturadas en ARCA
         self.cronograma = {"dias": []}                # {dias:[{dia, sesiones:[{hora,cat,actividad}]}]}
         self.updated = _now_iso()
         self._aid = 0
@@ -90,6 +92,29 @@ class MemStore:
     async def is_paid(self, device):
         return bool(self.access.get(device, {}).get("paid"))
 
+    async def create_venta(self, v):
+        self.ventas[v["device"]] = v
+
+    async def get_venta(self, device):
+        return self.ventas.get(device)
+
+    async def update_venta(self, device, fields):
+        if device in self.ventas:
+            self.ventas[device].update(fields)
+
+    async def list_ventas(self):
+        return sorted(self.ventas.values(), key=lambda x: x.get("ts", 0), reverse=True)
+
+    async def get_facturadas(self):
+        return sorted(self.facturadas)
+
+    async def toggle_facturada(self, fecha):
+        if fecha in self.facturadas:
+            self.facturadas.discard(fecha)
+            return False
+        self.facturadas.add(fecha)
+        return True
+
     async def get_cronograma(self):
         return self.cronograma
 
@@ -114,6 +139,7 @@ class MongoStore:
         await self.db.pilotos.create_index([("cat", 1), ("n", 1)], unique=True)
         await self.db.avisos.create_index([("ts", -1)])
         await self.db.access.create_index("device", unique=True)
+        await self.db.ventas.create_index("device", unique=True)
 
     async def close(self):
         self.client.close()
@@ -167,6 +193,31 @@ class MongoStore:
     async def is_paid(self, device):
         d = await self.db.access.find_one({"device": device})
         return bool(d and d.get("paid"))
+
+    async def create_venta(self, v):
+        await self.db.ventas.update_one({"device": v["device"]}, {"$set": v}, upsert=True)
+
+    async def get_venta(self, device):
+        return await self.db.ventas.find_one({"device": device}, {"_id": 0})
+
+    async def update_venta(self, device, fields):
+        await self.db.ventas.update_one({"device": device}, {"$set": fields})
+
+    async def list_ventas(self):
+        cur = self.db.ventas.find({}, {"_id": 0}).sort("ts", -1)
+        return [v async for v in cur]
+
+    async def get_facturadas(self):
+        m = await self.db.meta.find_one({"_id": "facturadas"})
+        return m["value"] if m else []
+
+    async def toggle_facturada(self, fecha):
+        cur = set(await self.get_facturadas())
+        estado = fecha not in cur
+        cur.add(fecha) if estado else cur.discard(fecha)
+        await self.db.meta.update_one(
+            {"_id": "facturadas"}, {"$set": {"value": sorted(cur)}}, upsert=True)
+        return estado
 
     async def get_updated(self):
         m = await self.db.meta.find_one({"_id": "updated"})

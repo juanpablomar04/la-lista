@@ -18,8 +18,12 @@ main.py — Backend de La lista (FastAPI).
 """
 import os
 import re
+import time
 import unicodedata
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+ARG_TZ = timezone(timedelta(hours=-3))   # Argentina, sin horario de verano
 
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -242,6 +246,34 @@ async def admin_delete_aviso(aid: str, _=Depends(require_admin)):
     return {"ok": True}
 
 
+@app.get("/api/admin/resumen")
+async def admin_resumen(_=Depends(require_admin)):
+    """Ventas pagadas agrupadas por día (hora argentina), para emitir una sola
+    Factura C a Consumidor Final por el total de cada día."""
+    ventas = await store.list_ventas()
+    facturadas = set(await store.get_facturadas())
+    dias = {}
+    for v in ventas:
+        if v.get("estado") not in ("pagado", "facturado"):
+            continue
+        dt = datetime.fromtimestamp(v.get("ts", 0), ARG_TZ)
+        key = dt.strftime("%Y-%m-%d")
+        d = dias.setdefault(key, {"fecha": key, "display": dt.strftime("%d/%m/%Y"),
+                                  "cantidad": 0, "total": 0.0})
+        d["cantidad"] += 1
+        d["total"] += float(v.get("importe") or 0)
+    out = sorted(dias.values(), key=lambda x: x["fecha"], reverse=True)
+    for d in out:
+        d["facturada"] = d["fecha"] in facturadas
+    return out
+
+
+@app.post("/api/admin/resumen/{fecha}/facturar")
+async def admin_marcar_facturada(fecha: str, _=Depends(require_admin)):
+    estado = await store.toggle_facturada(fecha)
+    return {"fecha": fecha, "facturada": estado}
+
+
 # =====================================================================
 # MERCADO PAGO
 # =====================================================================
@@ -255,6 +287,8 @@ def _mp():
 @app.post("/api/pay")
 async def create_payment(body: PayIn):
     sdk = _mp()
+    await store.create_venta({"device": body.device, "importe": PRICE_ARS,
+                              "estado": "iniciada", "payment_id": None, "ts": time.time()})
     pref = {
         "items": [{
             "title": "La lista — acceso carreras Balcarce",
@@ -275,7 +309,9 @@ async def create_payment(body: PayIn):
     data = resp.get("response", {})
     init_point = data.get("init_point") or data.get("sandbox_init_point")
     if not init_point:
+        await store.update_venta(body.device, {"estado": "error_mp"})
         raise HTTPException(502, f"Mercado Pago no devolvió init_point: {data}")
+    await store.update_venta(body.device, {"pref_id": data.get("id")})
     return {"init_point": init_point, "preference_id": data.get("id")}
 
 
@@ -296,7 +332,11 @@ async def mp_webhook(request: Request):
             sdk = _mp()
             info = sdk.payment().get(pid).get("response", {})
             if info.get("status") == "approved" and info.get("external_reference"):
-                await store.set_access(info["external_reference"], str(pid))
+                dev = info["external_reference"]
+                await store.set_access(dev, str(pid))
+                v = await store.get_venta(dev)
+                if v and v.get("estado") == "iniciada":
+                    await store.update_venta(dev, {"estado": "pagado", "payment_id": str(pid)})
         except Exception as e:
             print("[webhook] error verificando pago:", e)
     return JSONResponse({"ok": True})

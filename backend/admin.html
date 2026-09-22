@@ -103,6 +103,15 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <b>Resumen para facturar</b>
+        <button class="btn2 btn-sm" onclick="loadResumen()">Refrescar</button>
+      </div>
+      <p class="muted" style="margin:4px 0 2px">Total de ventas por día. Emití una Factura C a Consumidor Final por el total en ARCA y marcá el día como facturado.</p>
+      <div id="resumen" style="margin-top:8px"></div>
+    </div>
+
     <div class="row" style="margin-top:16px;justify-content:flex-end">
       <button class="btn2 btn-sm" onclick="logout()">Salir</button>
     </div>
@@ -148,6 +157,7 @@ function boot(){
   selCat(cat);
   loadAvisos();
   loadCrono();
+  loadResumen();
 }
 function selCat(c){
   cat = c;
@@ -243,6 +253,22 @@ function delSes(di,si){ crono.dias[di].sesiones.splice(si,1); renderCrono(); }
 async function saveCrono(){
   await api("/api/admin/cronograma",{method:"PUT",body:JSON.stringify(crono)});
   toast("Cronograma guardado");
+}
+
+async function loadResumen(){
+  const list = await api("/api/admin/resumen");
+  $("#resumen").innerHTML = list.length ? list.map(d=>`
+    <div class="pil">
+      <div class="i">
+        <b>${d.display}</b>
+        <span>${d.cantidad} venta(s) · Total $${(d.total||0).toLocaleString('es-AR')}</span>
+      </div>
+      <button class="btn2 btn-sm" style="${d.facturada?'color:var(--ok);border-color:var(--ok)':''}" onclick="marcarFacturada('${d.fecha}')">${d.facturada?'Facturada ✓':'Marcar facturada'}</button>
+    </div>`).join("") : '<p class="muted">Sin ventas pagadas todavía.</p>';
+}
+async function marcarFacturada(fecha){
+  await api("/api/admin/resumen/"+fecha+"/facturar",{method:"POST"});
+  loadResumen();
 }
 
 // auto-login si ya hay clave guardada
