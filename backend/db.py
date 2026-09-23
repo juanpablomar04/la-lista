@@ -8,7 +8,13 @@ los dos casos, así que main.py no sabe cuál está usando.
 """
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+ARG_TZ = timezone(timedelta(hours=-3))   # Argentina, sin horario de verano
+
+
+def _arg_day() -> str:
+    return datetime.now(ARG_TZ).strftime("%Y-%m-%d")
 
 # Metadatos de categorías (viven en código, no en la base: casi nunca cambian).
 CATS_META = [
@@ -45,6 +51,8 @@ class MemStore:
         self.peak = 0                                 # máximo de conectados en simultáneo
         self.stats = []                               # [{t, count}] muestreado ~1/min
         self._last_sample = 0.0
+        self.visits = {}                              # día YYYY-MM-DD -> set(devices)
+        self.visitors = set()                         # devices únicos de todos los tiempos
         self.cronograma = {"dias": []}                # {dias:[{dia, sesiones:[{hora,cat,actividad}]}]}
         self.updated = _now_iso()
         self._aid = 0
@@ -142,6 +150,20 @@ class MemStore:
     async def get_stats(self):
         return self.stats[-720:]
 
+    async def register_visit(self, device):
+        self.visits.setdefault(_arg_day(), set()).add(device)
+        self.visitors.add(device)
+
+    async def visits_today(self):
+        return len(self.visits.get(_arg_day(), set()))
+
+    async def visits_total(self):
+        return len(self.visitors)
+
+    async def visits_series(self, n=14):
+        days = sorted(self.visits.keys())[-n:]
+        return [{"day": d, "count": len(self.visits[d])} for d in days]
+
     async def get_cronograma(self):
         return self.cronograma
 
@@ -167,6 +189,9 @@ class MongoStore:
         await self.db.avisos.create_index([("ts", -1)])
         await self.db.access.create_index("device", unique=True)
         await self.db.ventas.create_index("device", unique=True)
+        await self.db.visits.create_index([("device", 1), ("day", 1)], unique=True)
+        await self.db.visits.create_index("day")
+        await self.db.visitors.create_index("device", unique=True)
 
     async def close(self):
         self.client.close()
@@ -272,6 +297,27 @@ class MongoStore:
     async def get_stats(self):
         cur = self.db.stats.find({}, {"_id": 0}).sort("t", -1).limit(720)
         return list(reversed([s async for s in cur]))
+
+    async def register_visit(self, device):
+        day = _arg_day()
+        await self.db.visits.update_one(
+            {"device": device, "day": day},
+            {"$setOnInsert": {"device": device, "day": day}}, upsert=True)
+        await self.db.visitors.update_one(
+            {"device": device}, {"$setOnInsert": {"device": device}}, upsert=True)
+
+    async def visits_today(self):
+        return await self.db.visits.count_documents({"day": _arg_day()})
+
+    async def visits_total(self):
+        return await self.db.visitors.count_documents({})
+
+    async def visits_series(self, n=14):
+        cur = self.db.visits.aggregate([
+            {"$group": {"_id": "$day", "count": {"$sum": 1}}},
+            {"$sort": {"_id": -1}}, {"$limit": n}])
+        rows = [{"day": d["_id"], "count": d["count"]} async for d in cur]
+        return list(reversed(rows))
 
     async def get_updated(self):
         m = await self.db.meta.find_one({"_id": "updated"})

@@ -156,6 +156,13 @@ async def live():
     return {"live": await store.count_live(), "peak": await store.get_peak()}
 
 
+@app.post("/api/visit")
+async def visit(body: PingIn):
+    """Registra una visita (único por dispositivo y día). La app pega una vez al abrir."""
+    await store.register_visit(body.device)
+    return {"ok": True}
+
+
 @app.get("/api/data")
 async def get_data():
     cats = []
@@ -313,7 +320,10 @@ async def admin_comp_link(_=Depends(require_admin)):
 async def admin_stats(_=Depends(require_admin)):
     return {"live": await store.count_live(),
             "peak": await store.get_peak(),
-            "series": await store.get_stats()}
+            "series": await store.get_stats(),
+            "visitsToday": await store.visits_today(),
+            "visitsTotal": await store.visits_total(),
+            "visitsSeries": await store.visits_series()}
 
 
 # =====================================================================

@@ -621,7 +621,14 @@ async function boot(){
     }
   }catch(e){ /* sin backend: queda el snapshot embebido */ }
   render();
-  if(hasBackend) startPresence();
+  if(hasBackend){ startPresence(); registerVisit(); }
+}
+
+async function registerVisit(){
+  try{
+    await fetch("/api/visit", {method:"POST", headers:{"Content-Type":"application/json"},
+                               body:JSON.stringify({device:DEVICE})});
+  }catch(e){}
 }
 
 // Latido de presencia: cada app abierta pega cada ~20s para que el panel /admin

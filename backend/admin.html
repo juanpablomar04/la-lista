@@ -73,6 +73,21 @@
       <p class="muted" style="margin-top:6px;font-size:11.5px">Personas con la app abierta en este momento. La curva se actualiza sola.</p>
     </div>
 
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="muted" style="font-size:12px">Visitas hoy</div>
+          <div style="font-family:'Barlow Condensed',system-ui;font-weight:700;font-size:42px;line-height:1"><span id="visToday">–</span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted" style="font-size:12px">Total (únicos)</div>
+          <div style="font-family:'Barlow Condensed',system-ui;font-weight:700;font-size:30px;line-height:1;color:var(--acc)" id="visTotal">–</div>
+        </div>
+      </div>
+      <div id="vischart" style="margin-top:12px"></div>
+      <p class="muted" style="margin-top:6px;font-size:11.5px">Personas distintas que abrieron la app (hoy y acumulado). Barras: visitas por día.</p>
+    </div>
+
     <div class="cats" id="cats"></div>
 
     <div class="card">
@@ -320,6 +335,22 @@ async function loadStats(){
   $("#liveNow").textContent = s.live;
   $("#livePeak").textContent = s.peak;
   drawChart(s.series||[]);
+  $("#visToday").textContent = s.visitsToday != null ? s.visitsToday : "–";
+  $("#visTotal").textContent = s.visitsTotal != null ? s.visitsTotal : "–";
+  drawBars(s.visitsSeries||[]);
+}
+function drawBars(series){
+  const el = $("#vischart");
+  if(!series.length){ el.innerHTML='<p class="muted" style="font-size:12px">Sin visitas registradas todavía.</p>'; return; }
+  const W=560,H=90,pad=4,gap=3,n=series.length;
+  const max=Math.max(1,...series.map(d=>d.count));
+  const bw=(W-2*pad-gap*(n-1))/n;
+  const bars=series.map((d,i)=>{
+    const h=Math.max(2,(d.count/max)*(H-2*pad));
+    const x=pad+i*(bw+gap), y=H-pad-h;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--acc)"/>`;
+  }).join("");
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" style="display:block">${bars}</svg>`;
 }
 function drawChart(series){
   const el = $("#livechart");
