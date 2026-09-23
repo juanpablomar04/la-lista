@@ -138,7 +138,8 @@ async def config():
 
 @app.post("/api/ping")
 async def ping(body: PingIn):
-    """Latido de presencia: cada app abierta pega acá cada ~20s."""
+    """Latido de presencia: cada app abierta pega acá cada ~20s.
+    Aprovechamos la respuesta para devolver los avisos, así aparecen solos."""
     await store.ping(body.device)
     live = await store.count_live()
     peak = await store.get_peak()
@@ -146,7 +147,8 @@ async def ping(body: PingIn):
         await store.set_peak(live)
         peak = live
     await store.sample_stat(live)
-    return {"live": live, "peak": peak}
+    avisos = await store.list_avisos()      # todos; la app filtra por categoría
+    return {"live": live, "peak": peak, "avisos": avisos}
 
 
 @app.get("/api/live")

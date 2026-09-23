@@ -245,9 +245,9 @@
     <div class="brand">
       <div class="flag" aria-hidden="true"></div>
       <div class="wordmark cond">LA LISTA
-        <small>Carreras · Balcarce 2026</small>
+        <small>Autódromo "Juan Manuel Fangio"</small>
       </div>
-      <div class="whereami">Fin de semana<br><b>de carreras</b></div>
+      <div class="whereami">26 y 27 de Septiembre<br><b>de 2026</b></div>
     </div>
     <div class="cats" id="cats" role="tablist" aria-label="Categorías"></div>
   </header>
@@ -261,8 +261,6 @@
   <div id="avisos"></div>
 
   <main id="content"></main>
-
-  <footer id="foot"></footer>
 </div>
 
 <script>
@@ -481,8 +479,7 @@ function pilotosView(c){
     </div>`;
   }).join("");
   return `<div class="meta">
-      <span class="count">${list.length}</span><span>pilotos${q?" (filtrado)":" inscriptos"}</span>
-      <input class="search" id="q" placeholder="Buscar piloto, equipo…" value="${state.q.replace(/"/g,'&quot;')}" autocomplete="off">
+      <input class="search" id="q" placeholder="Buscar piloto, equipo, número…" value="${state.q.replace(/"/g,'&quot;')}" autocomplete="off" style="max-width:none;margin-left:0">
     </div>
     ${list.length?rows:`<div class="empty"><div class="big">Sin resultados</div>Probá con otro nombre o número.</div>`}`;
 }
@@ -591,9 +588,6 @@ function render(){
       nq.oninput = q.oninput;
     };
   }
-  $("#foot").innerHTML =
-    `Lista de la fecha · Actualizada ${DATA.updated}.<br>
-     Editable en cualquier momento. Número, nombre, equipo y puntos.`;
 }
 
 // ===== Presencia en vivo =====
@@ -635,9 +629,19 @@ async function boot(){
 async function pingOnce(){
   if(document.visibilityState !== "visible") return;   // solo cuenta si está a la vista
   try{
-    await fetch("/api/ping", {method:"POST", headers:{"Content-Type":"application/json"},
-                              body:JSON.stringify({device:DEVICE})});
+    const r = await fetch("/api/ping", {method:"POST", headers:{"Content-Type":"application/json"},
+                                        body:JSON.stringify({device:DEVICE})});
+    if(r.ok){
+      const d = await r.json();
+      if(Array.isArray(d.avisos)) syncAvisos(d.avisos);   // avisos nuevos aparecen solos
+    }
   }catch(e){}
+}
+// Actualiza los avisos si cambiaron (sin re-renderizar de gusto ni perder los cerrados)
+function syncAvisos(list){
+  DATA.avisos = list;
+  const sig = JSON.stringify(list.map(a=>[a.id, a.txt, a.cat]));
+  if(sig !== window._avisosSig){ window._avisosSig = sig; renderAvisos(); }
 }
 function startPresence(){
   pingOnce();
